@@ -27,7 +27,7 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = CommuterController.to;
+    final ctrl = Get.find<CommuterController>();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
@@ -39,16 +39,17 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                 options: MapOptions(
                   initialCenter: ctrl.mapCenter.value,
                   initialZoom: ctrl.mapZoom.value,
-                  backgroundColor: const Color(0xFF1A1F2E),
+                  backgroundColor: const Color(0xFFF5F5F5), // Light gray background
                   onTap: (_, __) => ctrl.clearSelectedBus(),
                 ),
                 children: [
                   // Dark Map Tiles
                   TileLayer(
                     urlTemplate:
-                        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                     subdomains: const ['a', 'b', 'c', 'd'],
                     userAgentPackageName: 'com.evergo.evergo_bus_tracker',
+                    retinaMode: true,
                   ),
 
                   // Route Polylines
@@ -56,7 +57,7 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                     polylines: BusRouteModel.mockRoutes.map((route) {
                       return Polyline(
                         points: route.polyline,
-                        color: AppColors.mapRoute.withOpacity(0.7),
+                        color: AppColors.mapRoute.withValues(alpha: 0.7),
                         strokeWidth: 4,
                       );
                     }).toList(),
@@ -117,10 +118,17 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                         height: 48,
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         decoration: BoxDecoration(
-                          color: AppColors.cardDark.withOpacity(0.95),
+                          color: AppColors.cardDark.withValues(alpha: 0.95),
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusMd),
                           border: Border.all(color: AppColors.dividerDark),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Row(
                           children: [
@@ -234,7 +242,7 @@ class _BusMarker extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: _color.withOpacity(0.5),
+            color: _color.withValues(alpha: 0.5),
             blurRadius: 8,
             spreadRadius: 2,
           ),
@@ -263,14 +271,14 @@ class _MapActionBtn extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppColors.cardDark.withOpacity(0.95),
+          color: AppColors.cardDark.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.dividerDark),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -308,8 +316,8 @@ class _BusDetailSheet extends StatelessWidget {
         border: Border.all(color: AppColors.dividerDark),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 20,
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
             offset: const Offset(0, -4),
           ),
         ],
@@ -335,7 +343,7 @@ class _BusDetailSheet extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.12),
+                  color: _statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
@@ -501,13 +509,13 @@ class _BusList extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(AppSizes.md),
       decoration: BoxDecoration(
-        color: AppColors.cardDark.withOpacity(0.97),
+        color: AppColors.cardDark.withValues(alpha: 0.97),
         borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         border: Border.all(color: AppColors.dividerDark),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 20,
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
             offset: const Offset(0, -4),
           ),
         ],

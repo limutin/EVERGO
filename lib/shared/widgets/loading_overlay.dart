@@ -12,7 +12,7 @@ class LoadingOverlay extends StatelessWidget {
     Get.dialog(
       LoadingOverlay(message: message),
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
     );
   }
 
@@ -103,9 +103,9 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: color.withOpacity(0.4), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

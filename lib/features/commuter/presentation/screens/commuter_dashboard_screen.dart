@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/routes/route_names.dart';
 import '../../../../shared/models/bus_model.dart';
 import '../../../../shared/widgets/loading_overlay.dart';
+import '../../../../shared/widgets/skeleton_loader.dart';
 import '../controllers/commuter_controller.dart';
 
 class CommuterDashboardScreen extends StatelessWidget {
@@ -13,7 +16,7 @@ class CommuterDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = CommuterController.to;
+    final ctrl = Get.find<CommuterController>();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
@@ -25,8 +28,8 @@ class CommuterDashboardScreen extends StatelessWidget {
               await Future.delayed(const Duration(seconds: 1)),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSizes.pagePadding),
+            padding:
+                const EdgeInsets.symmetric(horizontal: AppSizes.pagePadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -40,27 +43,17 @@ class CommuterDashboardScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Quick Actions
-                _QuickActions(ctrl: ctrl),
+                _QuickActions(),
                 const SizedBox(height: 24),
 
-                // Nearby Buses
+                // Active Buses
                 _SectionHeader(
-                  title: 'Nearby Buses',
+                  title: 'Active Buses',
                   action: 'View Map',
-                  onAction: () => ctrl.changeTab(1),
+                  onAction: () => context.go(RouteNames.commuterMap),
                 ),
                 const SizedBox(height: 12),
                 _NearbyBusesList(ctrl: ctrl),
-                const SizedBox(height: 24),
-
-                // Today's Schedule Preview
-                _SectionHeader(
-                  title: "Today's Schedule",
-                  action: 'See All',
-                  onAction: () => ctrl.changeTab(3),
-                ),
-                const SizedBox(height: 12),
-                _SchedulePreview(),
                 const SizedBox(height: 24),
               ],
             ),
@@ -129,50 +122,53 @@ class _DashboardHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        // Notification Bell
+        // Notification Bell (Disabled - No notifications feature)
         Obx(() {
           final unread = ctrl.unreadNotificationCount;
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.cardDark,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.dividerDark),
+          return Opacity(
+            opacity: 0.5,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.cardDark,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.dividerDark),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  color: AppColors.textPrimary,
-                  size: 20,
-                ),
-              ),
-              if (unread > 0)
-                Positioned(
-                  top: 2,
-                  right: 2,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$unread',
-                        style: GoogleFonts.inter(
-                          fontSize: 8,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
+                if (unread > 0)
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: const BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$unread',
+                          style: GoogleFonts.inter(
+                            fontSize: 8,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           );
         }),
       ],
@@ -203,7 +199,7 @@ class _StatsRow extends StatelessWidget {
               color: AppColors.primary,
             ),
             const SizedBox(width: 12),
-            _StatCard(
+            const _StatCard(
               label: 'Avg Wait',
               value: '8 min',
               icon: Icons.timer_rounded,
@@ -236,6 +232,7 @@ class _StatCard extends StatelessWidget {
           color: AppColors.cardDark,
           borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           border: Border.all(color: AppColors.dividerDark),
+          boxShadow: AppColors.cardShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +241,7 @@ class _StatCard extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 16),
@@ -274,9 +271,7 @@ class _StatCard extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  final CommuterController ctrl;
-
-  const _QuickActions({required this.ctrl});
+  const _QuickActions();
 
   @override
   Widget build(BuildContext context) {
@@ -287,7 +282,7 @@ class _QuickActions extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -321,22 +316,17 @@ class _QuickActions extends StatelessWidget {
               _QuickActionBtn(
                 icon: Icons.my_location_rounded,
                 label: 'Track Bus',
-                onTap: () => ctrl.changeTab(1),
+                onTap: () => context.go(RouteNames.commuterMap),
               ),
               _QuickActionBtn(
                 icon: Icons.route_rounded,
                 label: 'Routes',
-                onTap: () => ctrl.changeTab(2),
+                onTap: () => context.go(RouteNames.commuterRoutes),
               ),
               _QuickActionBtn(
-                icon: Icons.schedule_rounded,
-                label: 'Schedule',
-                onTap: () => ctrl.changeTab(3),
-              ),
-              _QuickActionBtn(
-                icon: Icons.notifications_rounded,
-                label: 'Alerts',
-                onTap: () => ctrl.changeTab(4),
+                icon: Icons.person_rounded,
+                label: 'Profile',
+                onTap: () => context.go(RouteNames.commuterProfile),
               ),
             ],
           ),
@@ -367,10 +357,10 @@ class _QuickActionBtn extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
               ),
             ),
             child: Icon(icon, color: Colors.white, size: 24),
@@ -380,7 +370,7 @@ class _QuickActionBtn extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -442,7 +432,56 @@ class _NearbyBusesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      if (ctrl.isLoadingBuses.value) {
+        return Column(
+          children: const [
+            SkeletonBusCard(),
+            SkeletonBusCard(),
+            SkeletonBusCard(),
+          ],
+        );
+      }
+
       final buses = ctrl.nearbyBuses.take(3).toList();
+      
+      if (buses.isEmpty) {
+        return Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+            border: Border.all(color: AppColors.dividerDark),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                Icons.directions_bus_outlined,
+                size: 48,
+                color: AppColors.textMuted.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'No Active Buses',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'There are no buses running at the moment',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      }
+
       return Column(
         children: buses
             .map((bus) => Padding(
@@ -474,66 +513,90 @@ class _BusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final vacantSeats = bus.capacity - bus.passengerCount;
+    final occupancyPercent = (bus.passengerCount / bus.capacity * 100).round();
+    
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
         border: Border.all(color: AppColors.dividerDark),
+        boxShadow: AppColors.cardShadow,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bus Icon
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: _statusColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _statusColor.withOpacity(0.3),
+          Row(
+            children: [
+              // Bus Icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _statusColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Icon(
+                  Icons.directions_bus_rounded,
+                  color: _statusColor,
+                  size: 24,
+                ),
               ),
-            ),
-            child: Icon(
-              Icons.directions_bus_rounded,
-              color: _statusColor,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      bus.busNumber,
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    StatusBadge(
+                    Row(
+                      children: [
+                        Text(
+                          bus.busNumber,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        StatusBadge(
                       label: bus.statusLabel,
                       color: _statusColor,
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  bus.routeName,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
+                // Route Name
                 Row(
                   children: [
                     Icon(
+                      Icons.route_rounded,
+                      size: 12,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        bus.routeName,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Speed and Driver
+                Row(
+                  children: [
+                    const Icon(
                       Icons.speed_rounded,
                       size: 12,
                       color: AppColors.textMuted,
@@ -547,17 +610,21 @@ class _BusCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Icon(
-                      Icons.people_rounded,
+                    const Icon(
+                      Icons.person_outline_rounded,
                       size: 12,
                       color: AppColors.textMuted,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      '${bus.passengerCount}/${bus.capacity}',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
+                    Expanded(
+                      child: Text(
+                        bus.driverName,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -569,16 +636,16 @@ class _BusCard extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 ctrl.selectBus(bus);
-                ctrl.changeTab(1);
+                context.go(RouteNames.commuterMap);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppColors.primary.withOpacity(0.3),
+                    color: AppColors.primary.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Text(
@@ -593,93 +660,188 @@ class _BusCard extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
+      const SizedBox(height: 10),
+      // Current Stop Indicator (if bus is online)
+      if (bus.status == BusStatus.online)
+        StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('busProgress')
+              .doc(bus.id)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || snapshot.data?.data() == null) {
+              return const SizedBox.shrink();
+            }
 
-class _SchedulePreview extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final timeFormat = DateFormat('h:mm a');
-
-    return Column(
-      children: ScheduleEntry.mockSchedules.take(3).map((entry) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.cardDark,
-            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-            border: Border.all(color: AppColors.dividerDark),
-          ),
-          child: Row(
-            children: [
-              // Time
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.departure,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            final currentStopIndex = data['currentStopIndex'] as int? ?? 0;
+            
+            // Find the route and stop name
+            final route = BusRouteModel.mockRoutes.firstWhere(
+              (r) => r.id == bus.routeId,
+              orElse: () => BusRouteModel.mockRoutes.first,
+            );
+            
+            if (currentStopIndex >= 0 && currentStopIndex < route.stops.length) {
+              final currentStop = route.stops[currentStopIndex];
+              
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_rounded,
+                      size: 14,
                       color: AppColors.primary,
                     ),
-                  ),
-                  Text(
-                    '→ ${entry.arrival}',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              // Divider
-              Container(
-                width: 1,
-                height: 36,
-                color: AppColors.dividerDark,
-              ),
-              const SizedBox(width: 16),
-              // Route Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    const SizedBox(width: 6),
                     Text(
-                      entry.routeName,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      entry.busNumber,
+                      'Currently at: ',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: AppColors.textSecondary,
                       ),
                     ),
+                    Expanded(
+                      child: Text(
+                        currentStop.name,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
+              );
+            }
+            
+            return const SizedBox.shrink();
+          },
+        ),
+      if (bus.status == BusStatus.online)
+        const SizedBox(height: 10),
+      const SizedBox(height: 12),
+      // Passenger Information Bar
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: vacantSeats > 10
+              ? AppColors.success.withValues(alpha: 0.08)
+              : vacantSeats > 0
+                  ? AppColors.warning.withValues(alpha: 0.08)
+                  : AppColors.error.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: vacantSeats > 10
+                ? AppColors.success.withValues(alpha: 0.2)
+                : vacantSeats > 0
+                    ? AppColors.warning.withValues(alpha: 0.2)
+                    : AppColors.error.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            // Passengers
+            Icon(
+              Icons.people_rounded,
+              size: 16,
+              color: vacantSeats > 10
+                  ? AppColors.success
+                  : vacantSeats > 0
+                      ? AppColors.warning
+                      : AppColors.error,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '${bus.passengerCount}',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
               ),
-              // Fare
-              Text(
-                '₱${entry.fare.toStringAsFixed(0)}',
+            ),
+            Text(
+              ' / ${bus.capacity}',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 1,
+              height: 16,
+              color: AppColors.dividerDark,
+            ),
+            const SizedBox(width: 12),
+            // Vacant Seats
+            Icon(
+              Icons.event_seat_rounded,
+              size: 16,
+              color: vacantSeats > 10
+                  ? AppColors.success
+                  : vacantSeats > 0
+                      ? AppColors.warning
+                      : AppColors.error,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$vacantSeats',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: vacantSeats > 10
+                    ? AppColors.success
+                    : vacantSeats > 0
+                        ? AppColors.warning
+                        : AppColors.error,
+              ),
+            ),
+            Text(
+              ' vacant',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const Spacer(),
+            // Occupancy Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: vacantSeats > 10
+                    ? AppColors.success
+                    : vacantSeats > 0
+                        ? AppColors.warning
+                        : AppColors.error,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$occupancyPercent%',
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.accent,
+                  color: Colors.white,
                 ),
               ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+);
   }
 }
+

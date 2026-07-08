@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _OnboardingPage(
       title: 'Plan Your\nJourney Ahead',
       subtitle:
-          'View complete schedules, routes, and fares for the Dipolog-Dapitan corridor anytime.',
+          'View complete schedules and routes for the Dipolog-Dapitan corridor anytime.',
       icon: Icons.map_rounded,
       gradient: LinearGradient(
         begin: Alignment.topLeft,
@@ -140,7 +140,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             boxShadow: [
                               BoxShadow(
                                 color: (page.gradient.colors.first)
-                                    .withOpacity(0.35),
+                                    .withValues(alpha: 0.35),
                                 blurRadius: 48,
                                 offset: const Offset(0, 16),
                               ),

@@ -1,16 +1,70 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/routes/route_names.dart';
-import '../controllers/commuter_controller.dart';
+import '../../../../shared/services/user_profile_service.dart';
+import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import 'package:get/get.dart' hide Trans;
+import 'commuter_edit_profile_screen.dart';
+import 'commuter_change_password_screen.dart';
 
-class CommuterProfileScreen extends StatelessWidget {
+class CommuterProfileScreen extends StatefulWidget {
   const CommuterProfileScreen({super.key});
+
+  @override
+  State<CommuterProfileScreen> createState() => _CommuterProfileScreenState();
+}
+
+class _CommuterProfileScreenState extends State<CommuterProfileScreen> {
+  final _profileService = UserProfileService();
+  UserProfileStats? _stats;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserStats();
+  }
+
+  Future<void> _loadUserStats() async {
+    final authCtrl = Get.find<AuthController>();
+    final userId = authCtrl.currentUser.value?.id;
+
+    print('👤 Loading profile stats for user: $userId');
+
+    if (userId != null) {
+      try {
+        final stats = await _profileService.getUserStats(userId);
+        print('✅ Stats loaded successfully: ${stats.tripsTaken} trips, ${stats.savedRoutes} routes');
+        if (mounted) {
+          setState(() {
+            _stats = stats;
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        print('❌ Error loading stats: $e');
+        if (mounted) {
+          setState(() {
+            _stats = UserProfileStats.mock;
+            _isLoading = false;
+          });
+        }
+      }
+    } else {
+      print('⚠️ No user ID available, using mock data');
+      if (mounted) {
+        setState(() {
+          _stats = UserProfileStats.mock;
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +128,10 @@ class CommuterProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.12),
+                  color: AppColors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppSizes.radiusFull),
                   border: Border.all(
-                      color: AppColors.success.withOpacity(0.3)),
+                      color: AppColors.success.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -98,14 +152,28 @@ class CommuterProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Stats
-              Row(
-                children: [
-                  _ProfileStat(label: 'Trips Taken', value: '48'),
-                  _ProfileStat(label: 'Saved Routes', value: '3'),
-                  _ProfileStat(label: 'Member Since', value: 'Mar 2024'),
-                ],
-              ),
+              // Stats - Real data from Firebase
+              _isLoading
+                  ? const SkeletonProfileStats()
+                  : Row(
+                      children: [
+                        _ProfileStat(
+                          label: 'Trips Taken',
+                          value: '${_stats?.tripsTaken ?? 0}',
+                        ),
+                        _ProfileStat(
+                          label: 'Saved Routes',
+                          value: '${_stats?.savedRoutes ?? 0}',
+                        ),
+                        _ProfileStat(
+                          label: 'Member Since',
+                          value: _stats != null
+                              ? DateFormat('MMM yyyy')
+                                  .format(_stats!.memberSince)
+                              : 'N/A',
+                        ),
+                      ],
+                    ),
               const SizedBox(height: 24),
 
               // Menu Items
@@ -115,18 +183,36 @@ class CommuterProfileScreen extends StatelessWidget {
                   _ProfileItem(
                     icon: Icons.person_outline_rounded,
                     label: 'Edit Profile',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CommuterEditProfileScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _ProfileItem(
                     icon: Icons.phone_outlined,
                     label: user?.phone ?? '+63 912 345 6789',
                     subtitle: 'Phone number',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CommuterEditProfileScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _ProfileItem(
                     icon: Icons.lock_outline_rounded,
                     label: 'Change Password',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CommuterChangePasswordScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -134,11 +220,6 @@ class CommuterProfileScreen extends StatelessWidget {
               _ProfileSection(
                 title: 'Preferences',
                 items: [
-                  _ProfileItem(
-                    icon: Icons.notifications_outline_rounded,
-                    label: 'Notification Settings',
-                    onTap: () {},
-                  ),
                   _ProfileItem(
                     icon: Icons.language_rounded,
                     label: 'Language',
@@ -149,7 +230,15 @@ class CommuterProfileScreen extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    onTap: () {},
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Language selection will be available in the next update'),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
                   ),
                   _ProfileItem(
                     icon: Icons.dark_mode_rounded,
@@ -161,7 +250,15 @@ class CommuterProfileScreen extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    onTap: () {},
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Theme selection will be available in the next update'),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -172,12 +269,54 @@ class CommuterProfileScreen extends StatelessWidget {
                   _ProfileItem(
                     icon: Icons.help_outline_rounded,
                     label: 'Help & FAQ',
-                    onTap: () {},
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('For assistance, please contact support@evergo.ph'),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                          duration: Duration(seconds: 4),
+                        ),
+                      );
+                    },
                   ),
                   _ProfileItem(
                     icon: Icons.info_outline_rounded,
                     label: 'About Evergo',
-                    onTap: () {},
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: AppColors.cardDark,
+                          title: Text(
+                            'About Evergo',
+                            style: GoogleFonts.inter(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          content: Text(
+                            'Evergo Bus Tracker\nVersion 1.0.0\n\nDipolog-Dapitan Route Bus Tracking System\n\n© 2024 Evergo. All rights reserved.',
+                            style: GoogleFonts.inter(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: Text(
+                                'Close',
+                                style: GoogleFonts.inter(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -195,11 +334,11 @@ class CommuterProfileScreen extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.08),
+                    color: AppColors.error.withValues(alpha: 0.08),
                     borderRadius:
                         BorderRadius.circular(AppSizes.radiusLg),
                     border: Border.all(
-                        color: AppColors.error.withOpacity(0.2)),
+                        color: AppColors.error.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -247,7 +386,7 @@ class _ProfileAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.35),
+            color: AppColors.primary.withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -283,6 +422,7 @@ class _ProfileStat extends StatelessWidget {
           color: AppColors.cardDark,
           borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           border: Border.all(color: AppColors.dividerDark),
+          boxShadow: AppColors.cardShadow,
         ),
         child: Column(
           children: [
@@ -338,6 +478,7 @@ class _ProfileSection extends StatelessWidget {
             color: AppColors.cardDark,
             borderRadius: BorderRadius.circular(AppSizes.radiusLg),
             border: Border.all(color: AppColors.dividerDark),
+            boxShadow: AppColors.cardShadow,
           ),
           child: Column(
             children: List.generate(items.length, (i) {

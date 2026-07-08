@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../shared/models/notification_model.dart';
 import '../controllers/commuter_controller.dart';
 
 class CommuterNotificationsScreen extends StatelessWidget {
@@ -11,18 +12,18 @@ class CommuterNotificationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = CommuterController.to;
+    final ctrl = Get.find<CommuterController>();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
       appBar: AppBar(
-        backgroundColor: AppColors.backgroundDark,
+        backgroundColor: AppColors.dark,
         title: Text(
           'Notifications',
           style: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: Colors.white,
           ),
         ),
         actions: [
@@ -32,7 +33,7 @@ class CommuterNotificationsScreen extends StatelessWidget {
               'Mark all read',
               style: GoogleFonts.inter(
                 fontSize: 13,
-                color: AppColors.primary,
+                color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -132,8 +133,9 @@ class _NotificationCard extends StatelessWidget {
           border: Border.all(
             color: notification.isRead
                 ? AppColors.dividerDark
-                : _typeColor.withOpacity(0.3),
+                : _typeColor.withValues(alpha: 0.3),
           ),
+          boxShadow: AppColors.cardShadow,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +145,7 @@ class _NotificationCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: _typeColor.withOpacity(0.12),
+                color: _typeColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(_typeIcon, color: _typeColor, size: 20),

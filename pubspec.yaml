@@ -13,6 +13,11 @@ dependencies:
   # State Management
   get: ^4.6.6
 
+  # Firebase
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+
   # Navigation
   go_router: ^14.2.7
 
@@ -22,6 +27,9 @@ dependencies:
   # Maps
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+
+  # Location
+  geolocator: ^13.0.2
 
   # Charts
   fl_chart: ^0.68.0
@@ -45,6 +53,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -52,3 +61,22 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+
+# Flutter Launcher Icons Configuration
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/logo.jpg"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/icons/logo.jpg"
+    background_color: "#0F172A"
+    theme_color: "#3B82F6"
+  windows:
+    generate: true
+    image_path: "assets/icons/logo.jpg"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/icons/logo.jpg"

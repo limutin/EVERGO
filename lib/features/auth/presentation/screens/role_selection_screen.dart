@@ -181,7 +181,7 @@ class _RoleCard extends StatelessWidget {
         boxShadow: isSelected
             ? [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.2),
+                  color: AppColors.primary.withValues(alpha: 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -312,7 +312,7 @@ class _ContinueButton extends StatelessWidget {
           boxShadow: onPressed != null
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.35),
+                    color: AppColors.primary.withValues(alpha: 0.35),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),

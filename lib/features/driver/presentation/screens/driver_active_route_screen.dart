@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../shared/models/bus_model.dart';
-import '../../../../shared/widgets/loading_overlay.dart';
 import '../controllers/driver_controller.dart';
 
 class DriverActiveRouteScreen extends StatefulWidget {
@@ -28,7 +26,7 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = DriverController.to;
+    final ctrl = Get.find<DriverController>();
     final route = BusRouteModel.mockRoutes.first;
 
     return Scaffold(
@@ -41,21 +39,22 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                 options: MapOptions(
                   initialCenter: ctrl.currentPosition.value,
                   initialZoom: 14,
-                  backgroundColor: const Color(0xFF1A1F2E),
+                  backgroundColor: const Color(0xFFF5F5F5), // Light gray background
                 ),
                 children: [
                   TileLayer(
                     urlTemplate:
-                        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                     subdomains: const ['a', 'b', 'c', 'd'],
                     userAgentPackageName: 'com.evergo.evergo_bus_tracker',
+                    retinaMode: true,
                   ),
                   // Route Polyline
                   PolylineLayer(
                     polylines: [
                       Polyline(
                         points: route.polyline,
-                        color: AppColors.accent.withOpacity(0.8),
+                        color: AppColors.accent.withValues(alpha: 0.8),
                         strokeWidth: 5,
                       ),
                     ],
@@ -98,7 +97,7 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.accent.withOpacity(0.5),
+                                color: AppColors.accent.withValues(alpha: 0.5),
                                 blurRadius: 12,
                                 spreadRadius: 4,
                               ),
@@ -131,10 +130,17 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.cardDark.withOpacity(0.97),
+                          color: AppColors.cardDark.withValues(alpha: 0.97),
                           borderRadius:
                               BorderRadius.circular(AppSizes.radiusMd),
                           border: Border.all(color: AppColors.dividerDark),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Row(
                           children: [
@@ -180,6 +186,7 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                                     ? AppColors.success
                                     : AppColors.dividerDark,
                               ),
+                              boxShadow: AppColors.cardShadow,
                             ),
                             child: Icon(
                               ctrl.isSharingLocation.value
@@ -218,13 +225,16 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Obx(() => _MapBtn(
-                      icon: Icons.my_location_rounded,
-                      onTap: () => _mapController.move(
-                        ctrl.currentPosition.value,
-                        14,
-                      ),
-                    )),
+                _MapBtn(
+                  icon: Icons.my_location_rounded,
+                  onTap: () {
+                    final ctrl = Get.find<DriverController>();
+                    _mapController.move(
+                      ctrl.currentPosition.value,
+                      14,
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -238,13 +248,13 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
               margin: const EdgeInsets.all(AppSizes.md),
               padding: const EdgeInsets.all(AppSizes.md),
               decoration: BoxDecoration(
-                color: AppColors.cardDark.withOpacity(0.97),
+                color: AppColors.cardDark.withValues(alpha: 0.97),
                 borderRadius: BorderRadius.circular(AppSizes.radiusXl),
                 border: Border.all(color: AppColors.dividerDark),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
-                    blurRadius: 20,
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 24,
                     offset: const Offset(0, -4),
                   ),
                 ],
@@ -287,8 +297,8 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 72,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 82),
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: route.stops.length,
@@ -303,18 +313,20 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: isFirst || isLast
-                                ? AppColors.accent.withOpacity(0.08)
+                                ? AppColors.accent.withValues(alpha: 0.08)
                                 : AppColors.cardDark2,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isFirst || isLast
-                                  ? AppColors.accent.withOpacity(0.3)
+                                  ? AppColors.accent.withValues(alpha: 0.3)
                                   : AppColors.dividerDark,
                             ),
+                            boxShadow: AppColors.cardShadow,
                           ),
                           child: Column(
                             crossAxisAlignment:
                                 CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 isFirst
@@ -378,9 +390,16 @@ class _MapBtn extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppColors.cardDark.withOpacity(0.97),
+          color: AppColors.cardDark.withValues(alpha: 0.97),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.dividerDark),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Icon(icon, color: AppColors.textPrimary, size: 20),
       ),

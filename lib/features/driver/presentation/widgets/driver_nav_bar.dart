@@ -1,37 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/routes/route_names.dart';
 import '../controllers/driver_controller.dart';
-import '../screens/driver_dashboard_screen.dart';
-import '../screens/driver_active_route_screen.dart';
-import '../screens/driver_schedule_screen.dart';
-import '../screens/driver_reports_screen.dart';
-import '../screens/driver_profile_screen.dart';
 
 class DriverShell extends StatelessWidget {
-  const DriverShell({super.key});
+  final Widget child;
+  const DriverShell({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    Get.put(DriverController());
-    final ctrl = DriverController.to;
+    final ctrl = Get.put(DriverController());
+    
+    // Sync tab index with current route
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final location = GoRouter.of(context).routerDelegate.currentConfiguration.uri.toString();
+      ctrl.setTabFromRoute(location);
+    });
 
-    final screens = [
-      const DriverDashboardScreen(),
-      const DriverActiveRouteScreen(),
-      const DriverScheduleScreen(),
-      const DriverReportsScreen(),
-      const DriverProfileScreen(),
-    ];
-
-    return Obx(
-      () => Scaffold(
-        backgroundColor: AppColors.backgroundDark,
-        body: screens[ctrl.selectedTabIndex.value],
-        bottomNavigationBar: _DriverNavBar(controller: ctrl),
-      ),
+    return Scaffold(
+      backgroundColor: AppColors.backgroundDark,
+      body: child,
+      bottomNavigationBar: _DriverNavBar(controller: ctrl),
     );
   }
 }
@@ -45,13 +38,13 @@ class _DriverNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       (icon: Icons.dashboard_rounded, label: 'Dashboard'),
-      (icon: Icons.directions_bus_rounded, label: 'Route'),
-      (icon: Icons.schedule_rounded, label: 'Schedule'),
+      (icon: Icons.navigation_rounded, label: 'Active'),
+      (icon: Icons.route_rounded, label: 'Routes'),
       (icon: Icons.report_rounded, label: 'Reports'),
       (icon: Icons.person_rounded, label: 'Profile'),
     ];
 
-    return Obx(() => Container(
+    return Container(
           decoration: const BoxDecoration(
             color: AppColors.surfaceDark,
             border: Border(
@@ -65,54 +58,80 @@ class _DriverNavBar extends StatelessWidget {
               child: Row(
                 children: List.generate(items.length, (index) {
                   final item = items[index];
-                  final isSelected =
-                      controller.selectedTabIndex.value == index;
                   return Expanded(
-                    child: GestureDetector(
-                      onTap: () => controller.changeTab(index),
-                      behavior: HitTestBehavior.opaque,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.accent.withOpacity(0.12)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
+                    child: Obx(() {
+                      final isSelected =
+                          controller.selectedTabIndex.value == index;
+                      return GestureDetector(
+                        onTap: () {
+                          controller.changeTab(index);
+                          _navigateToDriverTab(context, index);
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.accent.withValues(alpha: 0.12)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                item.icon,
+                                color: isSelected
+                                    ? AppColors.accent
+                                    : AppColors.textMuted,
+                                size: 22,
+                              ),
                             ),
-                            child: Icon(
-                              item.icon,
-                              color: isSelected
-                                  ? AppColors.accent
-                                  : AppColors.textMuted,
-                              size: 22,
+                            const SizedBox(height: 3),
+                            Text(
+                              item.label,
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: isSelected
+                                    ? AppColors.accent
+                                    : AppColors.textMuted,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            item.label,
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: isSelected
-                                  ? AppColors.accent
-                                  : AppColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    }),
                   );
                 }),
               ),
             ),
           ),
-        ));
+        );
   }
-}
+
+  void _navigateToDriverTab(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.go(RouteNames.driverDashboard);
+        break;
+      case 1:
+        context.go(RouteNames.driverActiveRoute);
+        break;
+      case 2:
+        context.go(RouteNames.driverRoutes);
+        break;
+      case 3:
+        context.go(RouteNames.driverReports);
+        break;
+      case 4:
+        context.go(RouteNames.driverProfile);
+        break;
+    }
+  }
+  }
+

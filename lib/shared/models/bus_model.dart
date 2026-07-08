@@ -48,7 +48,7 @@ class BusModel {
 
   double get occupancyRate => passengerCount / capacity;
 
-  // Mock buses along Dipolog-Dapitan route
+  // Mock buses for Dipolog ↔ Dapitan route
   static List<BusModel> mockBuses = [
     BusModel(
       id: 'bus001',
@@ -56,8 +56,8 @@ class BusModel {
       plateNumber: 'ABC 1234',
       driverName: 'Juan dela Cruz',
       routeId: 'route001',
-      routeName: 'Dipolog → Dapitan',
-      position: const LatLng(8.2280, 123.3317),
+      routeName: 'Dipolog ↔ Dapitan',
+      position: const LatLng(8.6450, 123.4050), // At Polo
       status: BusStatus.online,
       speed: 42.5,
       passengerCount: 32,
@@ -71,8 +71,8 @@ class BusModel {
       plateNumber: 'DEF 5678',
       driverName: 'Pedro Reyes',
       routeId: 'route001',
-      routeName: 'Dapitan → Dipolog',
-      position: const LatLng(8.2420, 123.3590),
+      routeName: 'Dipolog ↔ Dapitan',
+      position: const LatLng(8.7050, 123.4650), // At Larayan
       status: BusStatus.online,
       speed: 38.0,
       passengerCount: 28,
@@ -86,29 +86,14 @@ class BusModel {
       plateNumber: 'GHI 9012',
       driverName: 'Carlos Mendoza',
       routeId: 'route001',
-      routeName: 'Dipolog → Dapitan',
-      position: const LatLng(8.2150, 123.3150),
+      routeName: 'Dipolog ↔ Dapitan',
+      position: const LatLng(8.5834, 123.3417), // At Dipolog Terminal
       status: BusStatus.idle,
       speed: 0,
       passengerCount: 0,
       capacity: 50,
       lastUpdated: DateTime.now().subtract(const Duration(minutes: 5)),
       heading: 0,
-    ),
-    BusModel(
-      id: 'bus004',
-      busNumber: 'EG-004',
-      plateNumber: 'JKL 3456',
-      driverName: 'Roberto Garcia',
-      routeId: 'route002',
-      routeName: 'Dipolog → Sindangan',
-      position: const LatLng(8.2310, 123.3450),
-      status: BusStatus.offline,
-      speed: 0,
-      passengerCount: 0,
-      capacity: 50,
-      lastUpdated: DateTime.now().subtract(const Duration(hours: 1)),
-      heading: 90,
     ),
   ];
 }
@@ -156,96 +141,90 @@ class BusRouteModel {
     this.isActive = true,
   });
 
+  // Single route: Dipolog ↔ Dapitan (Based on Evergood Transportation ticket)
   static List<BusRouteModel> mockRoutes = [
-    BusRouteModel(
+    const BusRouteModel(
       id: 'route001',
-      name: 'Dipolog → Dapitan',
-      description: 'Main route via Baroy and Linabo Peak junction',
+      name: 'Dipolog ↔ Dapitan',
+      description: 'Via Minaog, Lawa-an, Polo, San Pedro, Owawon, Larayan, Upper Sicayab, and Sicayab',
       stops: [
         RouteStop(
           id: 's1',
-          name: 'Dipolog City Terminal',
-          position: const LatLng(8.2280, 123.3317),
+          name: 'Dipolog',
+          position: LatLng(8.5834, 123.3417), // Dipolog City
           orderIndex: 0,
-          estimatedTime: '7:00 AM',
         ),
         RouteStop(
           id: 's2',
-          name: 'Dipolog Airport',
-          position: const LatLng(8.2350, 123.3400),
+          name: 'Minaog',
+          position: LatLng(8.6050, 123.3650),
           orderIndex: 1,
-          estimatedTime: '7:08 AM',
         ),
         RouteStop(
           id: 's3',
-          name: 'Baroy Junction',
-          position: const LatLng(8.2420, 123.3590),
+          name: 'Lawa-an',
+          position: LatLng(8.6250, 123.3850),
           orderIndex: 2,
-          estimatedTime: '7:18 AM',
         ),
         RouteStop(
           id: 's4',
-          name: 'Linabo Peak Junction',
-          position: const LatLng(8.2600, 123.3800),
+          name: 'Polo',
+          position: LatLng(8.6450, 123.4050),
           orderIndex: 3,
-          estimatedTime: '7:32 AM',
         ),
         RouteStop(
           id: 's5',
-          name: 'Dapitan City Terminal',
-          position: const LatLng(8.6500, 123.4200),
+          name: 'San Pedro',
+          position: LatLng(8.6650, 123.4250),
           orderIndex: 4,
-          estimatedTime: '7:45 AM',
         ),
-      ],
-      polyline: [
-        const LatLng(8.2280, 123.3317),
-        const LatLng(8.2350, 123.3400),
-        const LatLng(8.2420, 123.3590),
-        const LatLng(8.2600, 123.3800),
-        const LatLng(8.6500, 123.4200),
-      ],
-      distance: '22 km',
-      duration: '45 min',
-      fare: 28.00,
-      activeBuses: 3,
-    ),
-    BusRouteModel(
-      id: 'route002',
-      name: 'Dipolog → Sindangan',
-      description: 'Northern route via Polanco and Jose Dalman',
-      stops: [
         RouteStop(
           id: 's6',
-          name: 'Dipolog City Terminal',
-          position: const LatLng(8.2280, 123.3317),
-          orderIndex: 0,
-          estimatedTime: '6:00 AM',
+          name: 'Owawon',
+          position: LatLng(8.6850, 123.4450),
+          orderIndex: 5,
         ),
         RouteStop(
           id: 's7',
-          name: 'Polanco Town Proper',
-          position: const LatLng(8.5000, 123.3600),
-          orderIndex: 1,
-          estimatedTime: '6:35 AM',
+          name: 'Larayan',
+          position: LatLng(8.7050, 123.4650),
+          orderIndex: 6,
         ),
         RouteStop(
           id: 's8',
-          name: 'Sindangan Terminal',
-          position: const LatLng(8.2280, 122.9999),
-          orderIndex: 2,
-          estimatedTime: '7:30 AM',
+          name: 'Upper Sicayab',
+          position: LatLng(8.7250, 123.4850),
+          orderIndex: 7,
+        ),
+        RouteStop(
+          id: 's9',
+          name: 'Sicayab',
+          position: LatLng(8.7450, 123.5050),
+          orderIndex: 8,
+        ),
+        RouteStop(
+          id: 's10',
+          name: 'Dapitan',
+          position: LatLng(8.6500, 123.4242), // Dapitan City
+          orderIndex: 9,
         ),
       ],
       polyline: [
-        const LatLng(8.2280, 123.3317),
-        const LatLng(8.5000, 123.3600),
-        const LatLng(8.2280, 122.9999),
+        LatLng(8.5834, 123.3417), // Dipolog
+        LatLng(8.6050, 123.3650), // Minaog
+        LatLng(8.6250, 123.3850), // Lawa-an
+        LatLng(8.6450, 123.4050), // Polo
+        LatLng(8.6650, 123.4250), // San Pedro
+        LatLng(8.6850, 123.4450), // Owawon
+        LatLng(8.7050, 123.4650), // Larayan
+        LatLng(8.7250, 123.4850), // Upper Sicayab
+        LatLng(8.7450, 123.5050), // Sicayab
+        LatLng(8.6500, 123.4242), // Dapitan
       ],
-      distance: '54 km',
+      distance: '53 km',
       duration: '1h 30min',
-      fare: 65.00,
-      activeBuses: 1,
+      fare: 0, // No fare system
+      activeBuses: 3,
     ),
   ];
 }

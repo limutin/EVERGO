@@ -54,10 +54,18 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateAfterDelay() async {
+    // Allow time for splash animation AND for Firebase to restore auth state.
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
 
     final authController = Get.find<AuthController>();
+
+    // Give Firebase up to 2 more seconds to emit an auth state if still waiting.
+    if (!authController.isLoggedIn.value) {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+    }
+
     if (authController.isLoggedIn.value) {
       final role = authController.selectedRole.value;
       if (role?.name == 'driver') {
@@ -98,20 +106,21 @@ class _SplashScreenState extends State<SplashScreen>
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withOpacity(0.4),
-                              blurRadius: 32,
-                              offset: const Offset(0, 12),
+                              color: AppColors.primary.withValues(alpha: 0.25),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.directions_bus_rounded,
-                          size: 52,
-                          color: Colors.white,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Image.asset(
+                            'assets/icons/logo.jpg',
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 28),

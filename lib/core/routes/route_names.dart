@@ -15,7 +15,6 @@ class RouteNames {
   static const String commuterDashboard = '/commuter/dashboard';
   static const String commuterMap = '/commuter/map';
   static const String commuterRoutes = '/commuter/routes';
-  static const String commuterSchedules = '/commuter/schedules';
   static const String commuterNotifications = '/commuter/notifications';
   static const String commuterProfile = '/commuter/profile';
 
@@ -23,7 +22,7 @@ class RouteNames {
   static const String driverShell = '/driver';
   static const String driverDashboard = '/driver/dashboard';
   static const String driverActiveRoute = '/driver/active-route';
-  static const String driverSchedule = '/driver/schedule';
+  static const String driverRoutes = '/driver/routes';
   static const String driverReports = '/driver/reports';
   static const String driverProfile = '/driver/profile';
 }

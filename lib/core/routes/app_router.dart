@@ -8,7 +8,17 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/commuter/presentation/widgets/commuter_nav_bar.dart';
+import '../../features/commuter/presentation/screens/commuter_dashboard_screen.dart';
+import '../../features/commuter/presentation/screens/commuter_map_screen.dart';
+import '../../features/commuter/presentation/screens/commuter_routes_screen.dart';
+import '../../features/commuter/presentation/screens/commuter_notifications_screen.dart';
+import '../../features/commuter/presentation/screens/commuter_profile_screen.dart';
 import '../../features/driver/presentation/widgets/driver_nav_bar.dart';
+import '../../features/driver/presentation/screens/driver_dashboard_screen.dart';
+import '../../features/driver/presentation/screens/driver_active_route_timeline_screen.dart';
+import '../../features/driver/presentation/screens/driver_routes_screen.dart';
+import '../../features/driver/presentation/screens/driver_reports_screen.dart';
+import '../../features/driver/presentation/screens/driver_profile_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -86,69 +96,94 @@ class AppRouter {
 
       // Commuter Shell
       ShellRoute(
-        builder: (context, state, child) => const CommuterShell(),
+        builder: (context, state, child) => CommuterShell(child: child),
         routes: [
           GoRoute(
             path: RouteNames.commuterDashboard,
             name: 'commuter-dashboard',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const CommuterDashboardScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.commuterMap,
             name: 'commuter-map',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const CommuterMapScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.commuterRoutes,
             name: 'commuter-routes',
-            builder: (context, state) => const SizedBox.shrink(),
-          ),
-          GoRoute(
-            path: RouteNames.commuterSchedules,
-            name: 'commuter-schedules',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const CommuterRoutesScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.commuterNotifications,
             name: 'commuter-notifications',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const CommuterNotificationsScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.commuterProfile,
             name: 'commuter-profile',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const CommuterProfileScreen(),
+            ),
           ),
         ],
       ),
 
       // Driver Shell
       ShellRoute(
-        builder: (context, state, child) => const DriverShell(),
+        builder: (context, state, child) => DriverShell(child: child),
         routes: [
           GoRoute(
             path: RouteNames.driverDashboard,
             name: 'driver-dashboard',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const DriverDashboardScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.driverActiveRoute,
             name: 'driver-active-route',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const DriverActiveRouteTimelineScreen(),
+            ),
           ),
           GoRoute(
-            path: RouteNames.driverSchedule,
-            name: 'driver-schedule',
-            builder: (context, state) => const SizedBox.shrink(),
+            path: RouteNames.driverRoutes,
+            name: 'driver-routes',
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const DriverRoutesScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.driverReports,
             name: 'driver-reports',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const DriverReportsScreen(),
+            ),
           ),
           GoRoute(
             path: RouteNames.driverProfile,
             name: 'driver-profile',
-            builder: (context, state) => const SizedBox.shrink(),
+            pageBuilder: (context, state) => _fadeTransitionPage(
+              state: state,
+              child: const DriverProfileScreen(),
+            ),
           ),
         ],
       ),
@@ -162,12 +197,13 @@ class AppRouter {
     return CustomTransitionPage(
       key: state.pageKey,
       child: child,
-      transitionDuration: const Duration(milliseconds: 400),
+      transitionDuration: const Duration(milliseconds: 250),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
           opacity: CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOut,
+            curve: Curves.easeInOut,
           ),
           child: child,
         );

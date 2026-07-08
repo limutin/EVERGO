@@ -82,19 +82,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         constraints: const BoxConstraints(),
                       ),
                       const Spacer(),
+                      // App logo
                       Container(
-                        width: 52,
-                        height: 52,
+                        width: 64,
+                        height: 64,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          isDriver
-                              ? Icons.drive_eta_rounded
-                              : Icons.person_rounded,
                           color: Colors.white,
-                          size: 28,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.asset(
+                            'assets/icons/logo.jpg',
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -113,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             : 'Sign in to track your bus',
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -136,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       label: 'Email Address',
                       hint: 'you@example.com',
                       controller: _emailCtrl,
-                      validator: AppValidators.email,
+                      validator: Validators.email,
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: Icons.email_outlined,
                     ),
@@ -145,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       label: 'Password',
                       hint: 'Enter your password',
                       controller: _passwordCtrl,
-                      validator: AppValidators.password,
+                      validator: Validators.password,
                       obscureText: true,
                       prefixIcon: Icons.lock_outline_rounded,
                     ),
@@ -175,10 +183,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: const EdgeInsets.all(12),
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: AppColors.error.withOpacity(0.1),
+                            color: AppColors.error.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: AppColors.error.withOpacity(0.3),
+                              color: AppColors.error.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(

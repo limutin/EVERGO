@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../shared/models/driver_report_model.dart';
 import '../controllers/driver_controller.dart';
 
 class DriverReportsScreen extends StatefulWidget {
@@ -15,25 +17,25 @@ class DriverReportsScreen extends StatefulWidget {
 class _DriverReportsScreenState extends State<DriverReportsScreen> {
   @override
   Widget build(BuildContext context) {
-    final ctrl = DriverController.to;
+    final ctrl = Get.find<DriverController>();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
       appBar: AppBar(
-        backgroundColor: AppColors.backgroundDark,
+        backgroundColor: AppColors.dark,
         title: Text(
           'Reports',
           style: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: Colors.white,
           ),
         ),
         actions: [
           IconButton(
             icon: const Icon(
               Icons.add_circle_rounded,
-              color: AppColors.accent,
+              color: Colors.white,
               size: 28,
             ),
             onPressed: () => _showSubmitReportSheet(context, ctrl),
@@ -78,7 +80,7 @@ class _DriverReportsScreenState extends State<DriverReportsScreen> {
 
   void _showSubmitReportSheet(
       BuildContext context, DriverController ctrl) {
-    final typeCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
     final descCtrl = TextEditingController();
     String selectedType = 'Delay';
     final types = ['Delay', 'Maintenance', 'Incident', 'Passenger', 'Other'];
@@ -98,7 +100,9 @@ class _DriverReportsScreenState extends State<DriverReportsScreen> {
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSizes.pagePadding),
-            child: Column(
+            child: Form(
+              key: formKey,
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -191,6 +195,7 @@ class _DriverReportsScreenState extends State<DriverReportsScreen> {
                     fontSize: 14,
                     color: AppColors.textPrimary,
                   ),
+                  validator: (value) => Validators.textArea(value, minLength: 10, maxLength: 500),
                   decoration: InputDecoration(
                     hintText:
                         'Describe the incident or issue...',
@@ -225,7 +230,7 @@ class _DriverReportsScreenState extends State<DriverReportsScreen> {
                 // Submit Button
                 GestureDetector(
                   onTap: () {
-                    if (descCtrl.text.trim().isNotEmpty) {
+                    if (formKey.currentState!.validate()) {
                       ctrl.submitReport(
                         type: selectedType,
                         description: descCtrl.text.trim(),
@@ -234,7 +239,7 @@ class _DriverReportsScreenState extends State<DriverReportsScreen> {
                       Get.snackbar(
                         'Report Submitted',
                         'Your report has been sent successfully.',
-                        backgroundColor: AppColors.success.withOpacity(0.15),
+                        backgroundColor: AppColors.success.withValues(alpha: 0.15),
                         colorText: AppColors.success,
                         snackPosition: SnackPosition.TOP,
                         icon: const Icon(Icons.check_circle_rounded,
@@ -251,7 +256,7 @@ class _DriverReportsScreenState extends State<DriverReportsScreen> {
                           BorderRadius.circular(AppSizes.radiusMd),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.accent.withOpacity(0.3),
+                          color: AppColors.accent.withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -273,6 +278,7 @@ class _DriverReportsScreenState extends State<DriverReportsScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
@@ -336,6 +342,7 @@ class _ReportCard extends StatelessWidget {
         color: AppColors.cardDark,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
         border: Border.all(color: AppColors.dividerDark),
+        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,7 +353,7 @@ class _ReportCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: _typeColor.withOpacity(0.12),
+                  color: _typeColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(_typeIcon, color: _typeColor, size: 18),
@@ -366,10 +373,10 @@ class _ReportCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.12),
+                  color: _statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: _statusColor.withOpacity(0.3),
+                    color: _statusColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Text(

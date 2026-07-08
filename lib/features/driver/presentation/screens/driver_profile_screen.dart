@@ -5,8 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/routes/route_names.dart';
+import '../../../../shared/models/bus_model.dart';
 import '../controllers/driver_controller.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import 'driver_edit_profile_screen.dart';
+import 'driver_change_password_screen.dart';
 
 class DriverProfileScreen extends StatelessWidget {
   const DriverProfileScreen({super.key});
@@ -14,7 +17,7 @@ class DriverProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authCtrl = Get.find<AuthController>();
-    final driverCtrl = DriverController.to;
+    final driverCtrl = Get.find<DriverController>();
     final user = authCtrl.currentUser.value;
 
     return Scaffold(
@@ -37,13 +40,6 @@ class DriverProfileScreen extends StatelessWidget {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.settings_outlined,
-                      color: AppColors.textSecondary,
-                    ),
-                    onPressed: () {},
-                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -57,7 +53,7 @@ class DriverProfileScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accent.withOpacity(0.35),
+                      color: AppColors.accent.withValues(alpha: 0.35),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -144,92 +140,161 @@ class DriverProfileScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Bus Info Section
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.cardDark,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                  border: Border.all(color: AppColors.accent.withOpacity(0.2)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
+              Obx(() {
+                final bus = driverCtrl.assignedBus.value;
+                final isLoading = driverCtrl.isLoadingBus.value;
+
+                if (isLoading) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardDark,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                      border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                      boxShadow: AppColors.cardShadow,
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  );
+                }
+
+                if (bus == null) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardDark,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                      border: Border.all(color: AppColors.dividerDark),
+                      boxShadow: AppColors.cardShadow,
+                    ),
+                    child: Column(
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.directions_bus_rounded,
-                            color: AppColors.accent,
-                            size: 22,
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: AppColors.textMuted,
+                          size: 40,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No Bus Assigned',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Assigned Vehicle',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                              Text(
-                                '${driverCtrl.assignedBusNumber} — ABC 1234',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 4),
+                        Text(
+                          'Contact admin for bus assignment',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Active',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w600,
+                      ],
+                    ),
+                  );
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardDark,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                    boxShadow: AppColors.cardShadow,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.directions_bus_rounded,
+                              color: AppColors.accent,
+                              size: 22,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(color: AppColors.dividerDark, height: 1),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(Icons.route_rounded,
-                            color: AppColors.textMuted, size: 16),
-                        const SizedBox(width: 8),
-                        Text(
-                          driverCtrl.assignedRoute,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w500,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Assigned Vehicle',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                                Text(
+                                  '${bus.busNumber} — ${bus.plateNumber}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (bus.status == BusStatus.online
+                                      ? AppColors.success
+                                      : AppColors.textMuted)
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              bus.statusLabel,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: bus.status == BusStatus.online
+                                    ? AppColors.success
+                                    : AppColors.textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: AppColors.dividerDark, height: 1),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.route_rounded,
+                              color: AppColors.textMuted, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              bus.routeName,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
               const SizedBox(height: 16),
 
               // Profile Menu
@@ -239,18 +304,24 @@ class DriverProfileScreen extends StatelessWidget {
                   _ProfileItem(
                     icon: Icons.person_outline_rounded,
                     label: 'Edit Profile',
-                    onTap: () {},
+                    onTap: () {
+                      Get.to(() => const DriverEditProfileScreen());
+                    },
                   ),
                   _ProfileItem(
                     icon: Icons.phone_outlined,
                     label: user?.phone ?? '+63 917 654 3210',
                     subtitle: 'Phone number',
-                    onTap: () {},
+                    onTap: () {
+                      Get.to(() => const DriverEditProfileScreen());
+                    },
                   ),
                   _ProfileItem(
                     icon: Icons.lock_outline_rounded,
                     label: 'Change Password',
-                    onTap: () {},
+                    onTap: () {
+                      Get.to(() => const DriverChangePasswordScreen());
+                    },
                   ),
                 ],
               ),
@@ -261,20 +332,162 @@ class DriverProfileScreen extends StatelessWidget {
                   _ProfileItem(
                     icon: Icons.directions_bus_rounded,
                     label: 'Bus Information',
-                    onTap: () {},
+                    onTap: () {
+                      final bus = driverCtrl.assignedBus.value;
+                      if (bus == null) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: AppColors.cardDark,
+                            title: Text(
+                              'No Bus Assigned',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            content: Text(
+                              'You currently have no bus assigned. Please contact your administrator.',
+                              style: GoogleFonts.inter(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: Text(
+                                  'Close',
+                                  style: GoogleFonts.inter(color: AppColors.accent),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: AppColors.cardDark,
+                          title: Text(
+                            'Bus Information',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _InfoRow('Bus Number', bus.busNumber),
+                              _InfoRow('Plate Number', bus.plateNumber),
+                              _InfoRow('Route', bus.routeName),
+                              _InfoRow('Capacity', '${bus.capacity} seats'),
+                              _InfoRow('Status', bus.statusLabel),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                'Close',
+                                style: GoogleFonts.inter(color: AppColors.accent),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                   _ProfileItem(
                     icon: Icons.route_rounded,
                     label: 'Route Assignment',
-                    trailing: Text(
-                      'EG-001',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    onTap: () {},
+                    trailing: Obx(() {
+                      final bus = driverCtrl.assignedBus.value;
+                      return Text(
+                        bus?.busNumber ?? 'N/A',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    }),
+                    onTap: () {
+                      final bus = driverCtrl.assignedBus.value;
+                      if (bus == null) {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: AppColors.cardDark,
+                            title: Text(
+                              'No Route Assigned',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            content: Text(
+                              'You currently have no route assigned. Please contact your administrator.',
+                              style: GoogleFonts.inter(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: Text(
+                                  'Close',
+                                  style: GoogleFonts.inter(color: AppColors.accent),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Find the route details
+                      final route = BusRouteModel.mockRoutes.firstWhere(
+                        (r) => r.id == bus.routeId,
+                        orElse: () => BusRouteModel.mockRoutes.first,
+                      );
+
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: AppColors.cardDark,
+                          title: Text(
+                            'Route Assignment',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _InfoRow('Route ID', bus.routeId),
+                              _InfoRow('Route Name', bus.routeName),
+                              _InfoRow('Distance', route.distance),
+                              _InfoRow('Duration', route.duration),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                'Close',
+                                style: GoogleFonts.inter(color: AppColors.accent),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -292,11 +505,11 @@ class DriverProfileScreen extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.08),
+                    color: AppColors.error.withValues(alpha: 0.08),
                     borderRadius:
                         BorderRadius.circular(AppSizes.radiusLg),
                     border: Border.all(
-                        color: AppColors.error.withOpacity(0.2)),
+                        color: AppColors.error.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -341,6 +554,7 @@ class _DriverStat extends StatelessWidget {
           color: AppColors.cardDark,
           borderRadius: BorderRadius.circular(AppSizes.radiusLg),
           border: Border.all(color: AppColors.dividerDark),
+          boxShadow: AppColors.cardShadow,
         ),
         child: Column(
           children: [
@@ -396,6 +610,7 @@ class _ProfileSection extends StatelessWidget {
             color: AppColors.cardDark,
             borderRadius: BorderRadius.circular(AppSizes.radiusLg),
             border: Border.all(color: AppColors.dividerDark),
+            boxShadow: AppColors.cardShadow,
           ),
           child: Column(
             children: List.generate(items.length, (i) {
@@ -478,6 +693,40 @@ class _ProfileItem extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

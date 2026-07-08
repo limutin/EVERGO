@@ -1,211 +1,364 @@
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../../shared/models/bus_model.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../../shared/models/user_model.dart';
+import '../../../../shared/models/bus_model.dart';
+import '../../../../shared/models/driver_report_model.dart';
+import '../../../../shared/models/trip_model.dart';
+import '../../../../shared/services/driver_service.dart';
+import '../../../../shared/services/trip_service.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
-enum TripStatus { notStarted, inProgress, completed, paused }
-
-class DriverReport {
-  final String id;
-  final String type;
-  final String description;
-  final DateTime timestamp;
-  final String status;
-
-  const DriverReport({
-    required this.id,
-    required this.type,
-    required this.description,
-    required this.timestamp,
-    required this.status,
-  });
-
-  static List<DriverReport> mockReports = [
-    DriverReport(
-      id: 'r001',
-      type: 'Delay',
-      description: 'Road construction near Baroy Junction caused 15-min delay.',
-      timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-      status: 'Submitted',
-    ),
-    DriverReport(
-      id: 'r002',
-      type: 'Maintenance',
-      description: 'Left rear tire needs replacement.',
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      status: 'Reviewed',
-    ),
-    DriverReport(
-      id: 'r003',
-      type: 'Incident',
-      description: 'Minor collision at Dipolog Airport junction. No injuries.',
-      timestamp: DateTime.now().subtract(const Duration(days: 3)),
-      status: 'Resolved',
-    ),
-  ];
-}
-
-class DriverScheduleEntry {
-  final String routeName;
-  final String departure;
-  final String arrival;
-  final String busNumber;
-  final bool isCompleted;
-  final bool isCurrent;
-
-  const DriverScheduleEntry({
-    required this.routeName,
-    required this.departure,
-    required this.arrival,
-    required this.busNumber,
-    this.isCompleted = false,
-    this.isCurrent = false,
-  });
-
-  static List<DriverScheduleEntry> mockSchedule = const [
-    DriverScheduleEntry(
-      routeName: 'Dipolog → Dapitan',
-      departure: '6:00 AM',
-      arrival: '6:45 AM',
-      busNumber: 'EG-001',
-      isCompleted: true,
-    ),
-    DriverScheduleEntry(
-      routeName: 'Dapitan → Dipolog',
-      departure: '7:00 AM',
-      arrival: '7:45 AM',
-      busNumber: 'EG-001',
-      isCompleted: true,
-    ),
-    DriverScheduleEntry(
-      routeName: 'Dipolog → Dapitan',
-      departure: '9:00 AM',
-      arrival: '9:45 AM',
-      busNumber: 'EG-001',
-      isCurrent: true,
-    ),
-    DriverScheduleEntry(
-      routeName: 'Dapitan → Dipolog',
-      departure: '10:00 AM',
-      arrival: '10:45 AM',
-      busNumber: 'EG-001',
-    ),
-    DriverScheduleEntry(
-      routeName: 'Dipolog → Dapitan',
-      departure: '12:00 PM',
-      arrival: '12:45 PM',
-      busNumber: 'EG-001',
-    ),
-  ];
-}
+enum DriverTripState { notStarted, inProgress, completed, paused }
 
 class DriverController extends GetxController {
   static DriverController get to => Get.find();
 
+  // Services
+  final _driverService = DriverService();
+  final _tripService = TripService();
+
+  // Observables
   final RxInt selectedTabIndex = 0.obs;
-  final Rx<TripStatus> tripStatus = TripStatus.notStarted.obs;
+  final Rx<DriverTripState> tripStatus = DriverTripState.notStarted.obs;
   final RxBool isSharingLocation = false.obs;
   final RxDouble currentSpeed = 0.0.obs;
   final RxInt passengerCount = 0.obs;
-  final RxInt todayTrips = 3.obs;
-  final RxDouble totalDistance = 66.5.obs;
+  final RxInt todayTrips = 0.obs;
+  final RxDouble totalDistance = 0.0.obs;
   final RxList<DriverReport> reports = <DriverReport>[].obs;
-  final RxList<DriverScheduleEntry> schedule = <DriverScheduleEntry>[].obs;
-  final Rx<LatLng> currentPosition =
-      const LatLng(8.2280, 123.3317).obs;
+  final RxList<TripModel> trips = <TripModel>[].obs;
+  final Rx<BusModel?> assignedBus = Rx<BusModel?>(null);
+  final Rx<TripModel?> activeTrip = Rx<TripModel?>(null);
+  final Rx<LatLng> currentPosition = const LatLng(8.2280, 123.3317).obs;
+  final RxBool isLoadingBus = true.obs;
 
-  Timer? _locationTimer;
-  Timer? _speedTimer;
+  // Subscriptions
+  StreamSubscription? _busSubscription;
+  StreamSubscription? _reportsSubscription;
+  StreamSubscription? _tripsSubscription;
+  StreamSubscription? _activeTripSubscription;
+  StreamSubscription<Position>? _locationSubscription;
+  Timer? _locationUpdateTimer;
 
   @override
   void onInit() {
     super.onInit();
-    reports.assignAll(DriverReport.mockReports);
-    schedule.assignAll(DriverScheduleEntry.mockSchedule);
+    _initializeDriver();
   }
 
   @override
   void onClose() {
-    _locationTimer?.cancel();
-    _speedTimer?.cancel();
+    _busSubscription?.cancel();
+    _reportsSubscription?.cancel();
+    _tripsSubscription?.cancel();
+    _activeTripSubscription?.cancel();
+    _locationSubscription?.cancel();
+    _locationUpdateTimer?.cancel();
     super.onClose();
   }
 
-  UserModel? get currentUser =>
-      Get.find<AuthController>().currentUser.value;
+  /// Initialize driver data
+  void _initializeDriver() async {
+    final driverId = currentUserId;
+    if (driverId == null) return;
 
-  String get assignedBusNumber => 'EG-001';
-  String get assignedRoute => 'Dipolog ↔ Dapitan';
+    isLoadingBus.value = true;
+
+    // Watch assigned bus
+    _busSubscription = _driverService.watchDriverBus(driverId).listen(
+      (bus) {
+        assignedBus.value = bus;
+        isLoadingBus.value = false;
+        if (bus != null) {
+          currentPosition.value = bus.position;
+          currentSpeed.value = bus.speed;
+          passengerCount.value = bus.passengerCount;
+          
+          // Determine trip status from bus status
+          if (bus.status == BusStatus.online) {
+            tripStatus.value = DriverTripState.inProgress;
+            isSharingLocation.value = true;
+          } else if (bus.status == BusStatus.idle) {
+            if (tripStatus.value == DriverTripState.inProgress) {
+              tripStatus.value = DriverTripState.paused;
+            }
+          }
+        }
+      },
+      onError: (error) {
+        print('Error loading bus: $error');
+        isLoadingBus.value = false;
+      },
+    );
+
+    // Watch reports
+    _reportsSubscription = _driverService.watchDriverReports(driverId).listen(
+      (reportsList) {
+        reports.value = reportsList;
+      },
+      onError: (error) {
+        print('Error loading reports: $error');
+      },
+    );
+
+    // Watch driver's trips
+    _tripsSubscription = _tripService.watchTodayDriverTrips(driverId).listen(
+      (tripsList) {
+        trips.value = tripsList;
+      },
+      onError: (error) {
+        print('Error loading trips: $error');
+      },
+    );
+
+    // Watch active trip for the assigned bus
+    if (assignedBus.value != null) {
+      _activeTripSubscription = _tripService
+          .watchBusActiveTrip(assignedBus.value!.id)
+          .listen(
+        (trip) {
+          activeTrip.value = trip;
+        },
+        onError: (error) {
+          print('Error loading active trip: $error');
+        },
+      );
+    }
+
+    // Load today's stats
+    _loadTodayStats(driverId);
+  }
+
+  /// Load today's trip statistics
+  void _loadTodayStats(String driverId) async {
+    final stats = await _driverService.getTodayStats(driverId);
+    todayTrips.value = stats['completedTrips'] ?? 0;
+    totalDistance.value = stats['totalDistance'] ?? 0.0;
+  }
+
+  UserModel? get currentUser => Get.find<AuthController>().currentUser.value;
+  String? get currentUserId => Get.find<AuthController>().currentUser.value?.id;
+
+  String get assignedBusNumber => assignedBus.value?.busNumber ?? 'N/A';
+  String get assignedRoute => assignedBus.value?.routeName ?? 'Not Assigned';
 
   void changeTab(int index) => selectedTabIndex.value = index;
 
-  void startTrip() {
-    tripStatus.value = TripStatus.inProgress;
-    isSharingLocation.value = true;
-    _startLocationSimulation();
+  void setTabFromRoute(String routeName) {
+    switch (routeName) {
+      case '/driver/dashboard':
+        selectedTabIndex.value = 0;
+        break;
+      case '/driver/active-route':
+        selectedTabIndex.value = 1;
+        break;
+      case '/driver/routes':
+        selectedTabIndex.value = 2;
+        break;
+      case '/driver/schedule':
+        selectedTabIndex.value = 3;
+        break;
+      case '/driver/reports':
+        selectedTabIndex.value = 4;
+        break;
+      case '/driver/profile':
+        selectedTabIndex.value = 5;
+        break;
+    }
   }
 
-  void pauseTrip() {
-    tripStatus.value = TripStatus.paused;
-    _locationTimer?.cancel();
-    currentSpeed.value = 0;
-  }
+  /// Start trip - begin location sharing
+  Future<void> startTrip() async {
+    if (assignedBus.value == null) return;
 
-  void resumeTrip() {
-    tripStatus.value = TripStatus.inProgress;
-    _startLocationSimulation();
-  }
+    try {
+      // Get current location
+      final position = await _getCurrentLocation();
+      if (position == null) return;
 
-  void endTrip() {
-    tripStatus.value = TripStatus.completed;
-    isSharingLocation.value = false;
-    _locationTimer?.cancel();
-    _speedTimer?.cancel();
-    currentSpeed.value = 0;
-    todayTrips.value++;
-  }
+      currentPosition.value = LatLng(position.latitude, position.longitude);
 
-  void _startLocationSimulation() {
-    _locationTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      final current = currentPosition.value;
-      currentPosition.value = LatLng(
-        current.latitude + 0.0002,
-        current.longitude + 0.0001,
+      // Update Firebase
+      await _driverService.startTrip(
+        busId: assignedBus.value!.id,
+        routeId: assignedBus.value!.routeId,
+        latitude: position.latitude,
+        longitude: position.longitude,
       );
-      currentSpeed.value =
-          30 + (DateTime.now().second % 20).toDouble();
+
+      tripStatus.value = DriverTripState.inProgress;
+      isSharingLocation.value = true;
+
+      // Start location tracking
+      _startLocationTracking();
+    } catch (e) {
+      print('Error starting trip: $e');
+      Get.snackbar('Error', 'Failed to start trip');
+    }
+  }
+
+  /// Pause trip
+  Future<void> pauseTrip() async {
+    if (assignedBus.value == null) return;
+
+    try {
+      await _driverService.pauseTrip(assignedBus.value!.id);
+      tripStatus.value = DriverTripState.paused;
+      currentSpeed.value = 0;
+      _stopLocationTracking();
+    } catch (e) {
+      print('Error pausing trip: $e');
+    }
+  }
+
+  /// Resume trip
+  Future<void> resumeTrip() async {
+    if (assignedBus.value == null) return;
+
+    try {
+      await _driverService.resumeTrip(assignedBus.value!.id);
+      tripStatus.value = DriverTripState.inProgress;
+      _startLocationTracking();
+    } catch (e) {
+      print('Error resuming trip: $e');
+    }
+  }
+
+  /// End trip
+  Future<void> endTrip() async {
+    if (assignedBus.value == null) return;
+
+    try {
+      final position = await _getCurrentLocation();
+      if (position != null) {
+        await _driverService.endTrip(
+          busId: assignedBus.value!.id,
+          latitude: position.latitude,
+          longitude: position.longitude,
+        );
+      }
+
+      tripStatus.value = DriverTripState.completed;
+      isSharingLocation.value = false;
+      currentSpeed.value = 0;
+      _stopLocationTracking();
+
+      todayTrips.value++;
+      
+      // Reset to not started after a delay
+      Future.delayed(const Duration(seconds: 3), () {
+        tripStatus.value = DriverTripState.notStarted;
+      });
+    } catch (e) {
+      print('Error ending trip: $e');
+    }
+  }
+
+  /// Start tracking location
+  void _startLocationTracking() {
+    _locationUpdateTimer?.cancel();
+    
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (assignedBus.value == null || tripStatus.value != DriverTripState.inProgress) {
+        return;
+      }
+
+      final position = await _getCurrentLocation();
+      if (position != null) {
+        currentPosition.value = LatLng(position.latitude, position.longitude);
+        currentSpeed.value = position.speed * 3.6; // Convert m/s to km/h
+
+        // Update Firebase
+        await _driverService.updateLocation(
+          busId: assignedBus.value!.id,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          speed: position.speed * 3.6,
+          heading: position.heading,
+        );
+      }
     });
   }
 
-  void updatePassengerCount(int count) {
-    passengerCount.value = count;
+  /// Stop tracking location
+  void _stopLocationTracking() {
+    _locationUpdateTimer?.cancel();
+    _locationSubscription?.cancel();
   }
 
-  void submitReport({
+  /// Get current GPS location
+  Future<Position?> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return null;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition();
+    } catch (e) {
+      print('Error getting location: $e');
+      return null;
+    }
+  }
+
+  /// Update passenger count
+  Future<void> updatePassengerCount(int count) async {
+    if (assignedBus.value == null) return;
+
+    passengerCount.value = count;
+    await _driverService.updatePassengerCount(assignedBus.value!.id, count);
+  }
+
+  /// Submit a report
+  Future<void> submitReport({
     required String type,
     required String description,
-  }) {
-    final report = DriverReport(
-      id: 'r${DateTime.now().millisecondsSinceEpoch}',
-      type: type,
-      description: description,
-      timestamp: DateTime.now(),
-      status: 'Submitted',
-    );
-    reports.insert(0, report);
+  }) async {
+    final driverId = currentUserId;
+    if (driverId == null || assignedBus.value == null) return;
+
+    try {
+      final position = await _getCurrentLocation();
+      
+      await _driverService.submitReport(
+        driverId: driverId,
+        busId: assignedBus.value!.id,
+        type: type,
+        description: description,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
+
+      Get.snackbar('Success', 'Report submitted successfully');
+    } catch (e) {
+      print('Error submitting report: $e');
+      Get.snackbar('Error', 'Failed to submit report');
+    }
   }
 
   String get tripStatusLabel {
     switch (tripStatus.value) {
-      case TripStatus.notStarted:
+      case DriverTripState.notStarted:
         return 'Ready to Start';
-      case TripStatus.inProgress:
+      case DriverTripState.inProgress:
         return 'Trip in Progress';
-      case TripStatus.paused:
+      case DriverTripState.paused:
         return 'Trip Paused';
-      case TripStatus.completed:
+      case DriverTripState.completed:
         return 'Trip Completed';
     }
   }

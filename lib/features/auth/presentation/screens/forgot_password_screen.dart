@@ -42,12 +42,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
       appBar: AppBar(
-        backgroundColor: AppColors.backgroundDark,
+        backgroundColor: AppColors.dark,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_rounded,
-            color: AppColors.textPrimary,
+            color: Colors.white,
             size: 20,
           ),
           onPressed: () => Navigator.of(context).pop(),
@@ -55,7 +55,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         title: Text(
           'Reset Password',
           style: GoogleFonts.inter(
-            color: AppColors.textPrimary,
+            color: Colors.white,
             fontSize: 17,
             fontWeight: FontWeight.w600,
           ),
@@ -86,7 +86,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
+                  color: AppColors.primary.withValues(alpha: 0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -122,7 +122,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             label: 'Email Address',
             hint: 'you@example.com',
             controller: _emailCtrl,
-            validator: AppValidators.email,
+            validator: Validators.email,
             keyboardType: TextInputType.emailAddress,
             prefixIcon: Icons.email_outlined,
             textInputAction: TextInputAction.done,
@@ -151,10 +151,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           width: 100,
           height: 100,
           decoration: BoxDecoration(
-            color: AppColors.success.withOpacity(0.15),
+            color: AppColors.success.withValues(alpha: 0.15),
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppColors.success.withOpacity(0.4),
+              color: AppColors.success.withValues(alpha: 0.4),
               width: 2,
             ),
           ),
