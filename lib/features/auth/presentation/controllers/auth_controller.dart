@@ -197,6 +197,116 @@ class AuthController extends GetxController {
     isLoggedIn.value = false;
   }
 
+  /// Update user profile (name, phone, license number)
+  Future<bool> updateProfile({
+    required String name,
+    String? phone,
+    String? licenseNumber,
+  }) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        errorMessage.value = 'No user logged in';
+        return false;
+      }
+
+      final uid = user.uid;
+
+      // Update Firestore user document
+      final updateData = <String, dynamic>{
+        'name': name.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (phone != null && phone.isNotEmpty) {
+        updateData['phone'] = phone.trim();
+      }
+
+      if (licenseNumber != null && licenseNumber.isNotEmpty) {
+        updateData['licenseNumber'] = licenseNumber.trim();
+      }
+
+      await _firestore.collection('users').doc(uid).update(updateData);
+
+      // Update Firebase Auth display name
+      await user.updateDisplayName(name.trim());
+
+      // Update local state
+      if (currentUser.value != null) {
+        currentUser.value = currentUser.value!.copyWith(
+          name: name.trim(),
+          phone: phone?.trim(),
+          licenseNumber: licenseNumber?.trim(),
+        );
+      }
+
+      print('✅ Profile updated successfully');
+      return true;
+    } on FirebaseException catch (e) {
+      errorMessage.value = 'Failed to update profile: ${e.message}';
+      print('❌ Profile update error: ${e.message}');
+      return false;
+    } catch (e) {
+      errorMessage.value = 'Failed to update profile';
+      print('❌ Profile update error: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Change user password (requires current password for re-authentication)
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.email == null) {
+        errorMessage.value = 'No user logged in';
+        return false;
+      }
+
+      // Re-authenticate user with current password
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+
+      // Update password
+      await user.updatePassword(newPassword);
+
+      print('✅ Password changed successfully');
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        errorMessage.value = 'Current password is incorrect';
+      } else if (e.code == 'weak-password') {
+        errorMessage.value = 'New password must be at least 6 characters';
+      } else if (e.code == 'requires-recent-login') {
+        errorMessage.value = 'Please log out and log in again before changing password';
+      } else {
+        errorMessage.value = _mapAuthError(e.code);
+      }
+      print('❌ Password change error: ${e.code} - ${e.message}');
+      return false;
+    } catch (e) {
+      errorMessage.value = 'Failed to change password';
+      print('❌ Password change error: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------

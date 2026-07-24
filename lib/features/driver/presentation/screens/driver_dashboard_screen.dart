@@ -215,7 +215,7 @@ class _TripStatusCard extends StatelessWidget {
                   _TripButton(
                     label: 'Start Trip',
                     icon: Icons.play_arrow_rounded,
-                    onTap: ctrl.startTrip,
+                    onTap: () => ctrl.startTrip(context),
                   )
                 else if (status == DriverTripState.inProgress) ...[
                   _TripButton(

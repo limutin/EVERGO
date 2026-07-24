@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class DriverChangePasswordScreen extends StatefulWidget {
   const DriverChangePasswordScreen({super.key});
@@ -21,6 +22,7 @@ class _DriverChangePasswordScreenState
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _authController = Get.find<AuthController>();
   bool _isLoading = false;
 
   @override
@@ -37,28 +39,112 @@ class _DriverChangePasswordScreenState
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Implement password change in AuthController
-      await Future.delayed(const Duration(seconds: 1)); // Simulated change
+      final success = await _authController.changePassword(
+        currentPassword: _currentPasswordController.text,
+        newPassword: _newPasswordController.text,
+      );
 
       if (mounted) {
-        Get.back();
-        Get.snackbar(
-          'Success',
-          'Password changed successfully',
-          backgroundColor: AppColors.success.withValues(alpha: 0.1),
-          colorText: AppColors.success,
-        );
+        if (success) {
+          Get.back();
+          // Show success message
+          _showSuccessDialog();
+        } else {
+          // Show error message
+          _showErrorDialog(_authController.errorMessage.value.isEmpty
+              ? 'Failed to change password'
+              : _authController.errorMessage.value);
+        }
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to change password',
-        backgroundColor: AppColors.error.withValues(alpha: 0.1),
-        colorText: AppColors.error,
-      );
+      if (mounted) {
+        _showErrorDialog('Failed to change password: $e');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.backgroundDark,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.check_circle, color: AppColors.success, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'Success',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Password changed successfully',
+            style: GoogleFonts.inter(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'OK',
+                style: GoogleFonts.inter(color: AppColors.accent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.backgroundDark,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.error, color: AppColors.error, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'Error',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: GoogleFonts.inter(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'OK',
+                style: GoogleFonts.inter(color: AppColors.accent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -93,10 +179,10 @@ class _DriverChangePasswordScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.1),
+                  color: AppColors.accent.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                   border: Border.all(
-                    color: AppColors.accent.withValues(alpha: 0.2),
+                    color: AppColors.accent.withOpacity(0.2),
                   ),
                 ),
                 child: Row(

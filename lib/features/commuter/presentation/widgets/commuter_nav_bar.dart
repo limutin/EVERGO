@@ -3,162 +3,175 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/routes/route_names.dart';
 import '../controllers/commuter_controller.dart';
 
-class CommuterShell extends StatelessWidget {
+/// Shell widget that wraps commuter screens with a bottom navigation bar
+class CommuterShell extends StatefulWidget {
   final Widget child;
+
   const CommuterShell({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
-    final ctrl = Get.put(CommuterController());
-    
-    // Sync tab index with current route
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final location = GoRouter.of(context).routerDelegate.currentConfiguration.uri.toString();
-      ctrl.setTabFromRoute(location);
-    });
+  State<CommuterShell> createState() => _CommuterShellState();
+}
 
+class _CommuterShellState extends State<CommuterShell> {
+  late CommuterController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize CommuterController if not already initialized
+    if (!Get.isRegistered<CommuterController>()) {
+      Get.put(CommuterController());
+    }
+    _controller = Get.find<CommuterController>();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
-      body: child,
-      bottomNavigationBar: _CommuterNavBar(controller: ctrl),
+      body: widget.child,
+      bottomNavigationBar: const CommuterNavBar(),
     );
   }
 }
 
-class _CommuterNavBar extends StatelessWidget {
-  final CommuterController controller;
-
-  const _CommuterNavBar({required this.controller});
+/// Bottom navigation bar for commuter screens
+class CommuterNavBar extends StatelessWidget {
+  const CommuterNavBar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceDark,
-        border: Border(
-          top: BorderSide(color: AppColors.dividerDark, width: 1),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: AppSizes.bottomNavHeight,
-          child: Row(
-            children: [
-              _NavItem(
-                icon: Icons.dashboard_rounded,
-                label: 'Home',
-                index: 0,
-                controller: controller,
+    final ctrl = Get.find<CommuterController>();
+
+    return Obx(() => Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
+            border: Border(
+              top: BorderSide(
+                color: AppColors.dividerDark,
+                width: 1,
               ),
-              _NavItem(
-                icon: Icons.map_rounded,
-                label: 'Track',
-                index: 1,
-                controller: controller,
-              ),
-              _NavItem(
-                icon: Icons.route_rounded,
-                label: 'Routes',
-                index: 2,
-                controller: controller,
-              ),
-              _NavItem(
-                icon: Icons.person_rounded,
-                label: 'Profile',
-                index: 3,
-                controller: controller,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
               ),
             ],
           ),
-        ),
-      ),
-    );
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _NavItem(
+                    icon: Icons.home_rounded,
+                    label: 'Home',
+                    isActive: ctrl.selectedTabIndex.value == 0,
+                    onTap: () {
+                      ctrl.changeTab(0);
+                      context.go(RouteNames.commuterDashboard);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.map_rounded,
+                    label: 'Map',
+                    isActive: ctrl.selectedTabIndex.value == 1,
+                    onTap: () {
+                      ctrl.changeTab(1);
+                      context.go(RouteNames.commuterMap);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.route_rounded,
+                    label: 'Routes',
+                    isActive: ctrl.selectedTabIndex.value == 2,
+                    onTap: () {
+                      ctrl.changeTab(2);
+                      context.go(RouteNames.commuterRoutes);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.person_rounded,
+                    label: 'Profile',
+                    isActive: ctrl.selectedTabIndex.value == 3,
+                    onTap: () {
+                      ctrl.changeTab(3);
+                      context.go(RouteNames.commuterProfile);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ));
   }
 }
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
-  final int index;
-  final CommuterController controller;
+  final bool isActive;
+  final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
     required this.label,
-    required this.index,
-    required this.controller,
+    required this.isActive,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final isSelected = controller.selectedTabIndex.value == index;
-      return Expanded(
-        child: GestureDetector(
-          onTap: () {
-            controller.changeTab(index);
-            _navigateToTab(context, index);
-          },
-          behavior: HitTestBehavior.opaque,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: 0.12)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isActive
+                        ? AppColors.primary
+                        : AppColors.textMuted,
+                    size: 24,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textMuted,
-                  size: 22,
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                    color: isActive
+                        ? AppColors.primary
+                        : AppColors.textMuted,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textMuted,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      );
-    });
-  }
-
-  void _navigateToTab(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go(RouteNames.commuterDashboard);
-        break;
-      case 1:
-        context.go(RouteNames.commuterMap);
-        break;
-      case 2:
-        context.go(RouteNames.commuterRoutes);
-        break;
-      case 3:
-        context.go(RouteNames.commuterProfile);
-        break;
-    }
+      ),
+    );
   }
 }

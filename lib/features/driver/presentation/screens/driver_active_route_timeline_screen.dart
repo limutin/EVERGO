@@ -217,7 +217,7 @@ class _DriverActiveRouteTimelineScreenState
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // Location share toggle
+                      // Location share toggle (IMPROVED: Better visibility)
                       GestureDetector(
                         onTap: () {
                           if (ctrl.isSharingLocation.value) {
@@ -232,21 +232,30 @@ class _DriverActiveRouteTimelineScreenState
                           decoration: BoxDecoration(
                             color: ctrl.isSharingLocation.value
                                 ? AppColors.success
-                                : AppColors.cardDark,
+                                : Colors.red.shade400, // Red when OFF for visibility
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: ctrl.isSharingLocation.value
                                   ? AppColors.success
-                                  : AppColors.dividerDark,
+                                  : Colors.red.shade600,
+                              width: 2,
                             ),
-                            boxShadow: AppColors.cardShadow,
+                            boxShadow: [
+                              BoxShadow(
+                                color: ctrl.isSharingLocation.value
+                                    ? AppColors.success.withValues(alpha: 0.3)
+                                    : Colors.red.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Icon(
                             ctrl.isSharingLocation.value
                                 ? Icons.location_on_rounded
                                 : Icons.location_off_rounded,
                             color: Colors.white,
-                            size: 20,
+                            size: 22,
                           ),
                         ),
                       ),

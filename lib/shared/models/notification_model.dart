@@ -1,11 +1,16 @@
 /// Notification types
-enum NotificationType { arrival, schedule, delay, info }
+enum NotificationType { 
+  busArrival,
+  delay, 
+  scheduleChange, 
+  system,
+}
 
 /// Notification item model
 class NotificationItem {
   final String id;
   final String title;
-  final String body;
+  final String message;
   final NotificationType type;
   final DateTime timestamp;
   final bool isRead;
@@ -13,17 +18,20 @@ class NotificationItem {
   const NotificationItem({
     required this.id,
     required this.title,
-    required this.body,
+    required this.message,
     required this.type,
     required this.timestamp,
     this.isRead = false,
   });
 
+  // Legacy getter for backwards compatibility
+  String get body => message;
+
   NotificationItem copyWith({bool? isRead}) {
     return NotificationItem(
       id: id,
       title: title,
-      body: body,
+      message: message,
       type: type,
       timestamp: timestamp,
       isRead: isRead ?? this.isRead,
@@ -34,21 +42,38 @@ class NotificationItem {
     return NotificationItem(
       id: map['id'] as String,
       title: map['title'] as String,
-      body: map['body'] as String,
-      type: NotificationType.values.firstWhere(
-        (e) => e.name == map['type'],
-        orElse: () => NotificationType.info,
-      ),
+      message: map['message'] as String? ?? map['body'] as String,
+      type: _parseType(map['type'] as String?),
       timestamp: DateTime.parse(map['timestamp'] as String),
       isRead: map['isRead'] as bool? ?? false,
     );
+  }
+
+  static NotificationType _parseType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'busarrival':
+      case 'bus_arrival':
+      case 'arrival':
+        return NotificationType.busArrival;
+      case 'delay':
+        return NotificationType.delay;
+      case 'schedulechange':
+      case 'schedule_change':
+      case 'schedule':
+        return NotificationType.scheduleChange;
+      case 'system':
+      case 'info':
+        return NotificationType.system;
+      default:
+        return NotificationType.system;
+    }
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'title': title,
-      'body': body,
+      'message': message,
       'type': type.name,
       'timestamp': timestamp.toIso8601String(),
       'isRead': isRead,

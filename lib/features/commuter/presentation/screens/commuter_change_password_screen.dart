@@ -1,34 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
+import '../../../../shared/widgets/custom_button.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 
 class CommuterChangePasswordScreen extends StatefulWidget {
   const CommuterChangePasswordScreen({super.key});
 
   @override
-  State<CommuterChangePasswordScreen> createState() =>
-      _CommuterChangePasswordScreenState();
+  State<CommuterChangePasswordScreen> createState() => _CommuterChangePasswordScreenState();
 }
 
-class _CommuterChangePasswordScreenState
-    extends State<CommuterChangePasswordScreen> {
+class _CommuterChangePasswordScreenState extends State<CommuterChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _authController = Get.find<AuthController>();
   bool _isLoading = false;
-
-  @override
-  void dispose() {
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
@@ -36,32 +29,120 @@ class _CommuterChangePasswordScreenState
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Implement password change in AuthController
-      await Future.delayed(const Duration(seconds: 1)); // Simulated change
+      final success = await _authController.changePassword(
+        currentPassword: _currentPasswordController.text,
+        newPassword: _newPasswordController.text,
+      );
 
       if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password changed successfully'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (success) {
+          Navigator.of(context).pop();
+          // Show success message
+          _showSuccessDialog();
+        } else {
+          // Show error message
+          _showErrorDialog(_authController.errorMessage.value.isEmpty
+              ? 'Failed to change password'
+              : _authController.errorMessage.value);
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to change password'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showErrorDialog('Failed to change password: $e');
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.backgroundDark,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.check_circle, color: AppColors.success, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'Success',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Password changed successfully',
+            style: GoogleFonts.inter(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'OK',
+                style: GoogleFonts.inter(color: AppColors.primary),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.backgroundDark,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.error, color: AppColors.error, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'Error',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: GoogleFonts.inter(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'OK',
+                style: GoogleFonts.inter(color: AppColors.primary),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -90,16 +171,16 @@ class _CommuterChangePasswordScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
-
+              const SizedBox(height: 8),
+              
               // Info Card
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                   border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.2),
+                    color: AppColors.primary.withOpacity(0.3),
                   ),
                 ),
                 child: Row(
@@ -107,69 +188,62 @@ class _CommuterChangePasswordScreenState
                     const Icon(
                       Icons.info_outline_rounded,
                       color: AppColors.primary,
-                      size: 24,
+                      size: 20,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Your password must be at least 6 characters long',
+                        'Your new password must be at least 6 characters long',
                         style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 24),
 
               // Current Password
               CustomTextField(
-                controller: _currentPasswordController,
                 label: 'Current Password',
+                controller: _currentPasswordController,
                 hint: 'Enter current password',
+                prefixIcon: Icons.lock_outline_rounded,
+                obscureText: true,
+                validator: Validators.required,
+              ),
+              const SizedBox(height: 20),
+
+              // New Password
+              CustomTextField(
+                label: 'New Password',
+                controller: _newPasswordController,
+                hint: 'Enter new password',
                 prefixIcon: Icons.lock_outline_rounded,
                 obscureText: true,
                 validator: Validators.password,
               ),
+              const SizedBox(height: 20),
 
-              const SizedBox(height: 16),
-
-              // New Password
+              // Confirm New Password
               CustomTextField(
-                controller: _newPasswordController,
-                label: 'New Password',
-                hint: 'Enter new password',
-                prefixIcon: Icons.lock_rounded,
+                label: 'Confirm New Password',
+                controller: _confirmPasswordController,
+                hint: 'Re-enter new password',
+                prefixIcon: Icons.lock_outline_rounded,
                 obscureText: true,
                 validator: (value) {
-                  final passwordError = Validators.password(value);
-                  if (passwordError != null) return passwordError;
-                  
-                  if (value == _currentPasswordController.text) {
-                    return 'New password must be different from current';
+                  if (value == null || value.isEmpty) {
+                    return 'Please confirm your password';
+                  }
+                  if (value != _newPasswordController.text) {
+                    return 'Passwords do not match';
                   }
                   return null;
                 },
               ),
-
-              const SizedBox(height: 16),
-
-              // Confirm Password
-              CustomTextField(
-                controller: _confirmPasswordController,
-                label: 'Confirm New Password',
-                hint: 'Re-enter new password',
-                prefixIcon: Icons.lock_rounded,
-                obscureText: true,
-                validator: (value) => Validators.confirmPassword(
-                  value,
-                  _newPasswordController.text,
-                ),
-              ),
-
               const SizedBox(height: 32),
 
               // Change Password Button
@@ -177,7 +251,6 @@ class _CommuterChangePasswordScreenState
                 label: 'Change Password',
                 onPressed: _changePassword,
                 isLoading: _isLoading,
-                gradient: AppColors.primaryGradient,
               ),
             ],
           ),

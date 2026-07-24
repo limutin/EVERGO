@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "locations": {
+      "$busId": {
+        ".read": true,
+        ".write": "auth != null && root.child('buses').child($busId).child('driverId').val() == auth.uid",
+        ".validate": "newData.hasChildren(['latitude', 'longitude', 'speed', 'heading', 'timestamp'])"
+      }
+    },
+    ".read": false,
+    ".write": false
+  }
+}

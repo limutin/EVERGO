@@ -53,13 +53,13 @@ class NotificationService extends FirebaseService {
   Future<void> createNotification({
     required String userId,
     required String title,
-    required String body,
+    required String message,
     required NotificationType type,
   }) async {
     await notificationsCollection.add({
       'userId': userId,
       'title': title,
-      'body': body,
+      'message': message,
       'type': type.name,
       'timestamp': FieldValue.serverTimestamp(),
       'isRead': false,
@@ -74,7 +74,7 @@ class NotificationService extends FirebaseService {
     return NotificationItem(
       id: doc.id,
       title: data['title'] as String? ?? '',
-      body: data['body'] as String? ?? '',
+      message: data['message'] as String? ?? data['body'] as String? ?? '',
       type: _parseType(data['type'] as String?),
       timestamp: timestamp?.toDate() ?? DateTime.now(),
       isRead: data['isRead'] as bool? ?? false,
@@ -84,16 +84,21 @@ class NotificationService extends FirebaseService {
   /// Parse notification type from string
   NotificationType _parseType(String? type) {
     switch (type?.toLowerCase()) {
+      case 'busarrival':
+      case 'bus_arrival':
       case 'arrival':
-        return NotificationType.arrival;
-      case 'schedule':
-        return NotificationType.schedule;
+        return NotificationType.busArrival;
       case 'delay':
         return NotificationType.delay;
+      case 'schedulechange':
+      case 'schedule_change':
+      case 'schedule':
+        return NotificationType.scheduleChange;
+      case 'system':
       case 'info':
-        return NotificationType.info;
+        return NotificationType.system;
       default:
-        return NotificationType.info;
+        return NotificationType.system;
     }
   }
 }

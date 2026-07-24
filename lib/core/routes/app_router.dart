@@ -19,6 +19,7 @@ import '../../features/driver/presentation/screens/driver_active_route_timeline_
 import '../../features/driver/presentation/screens/driver_routes_screen.dart';
 import '../../features/driver/presentation/screens/driver_reports_screen.dart';
 import '../../features/driver/presentation/screens/driver_profile_screen.dart';
+import '../../features/admin/seed_data_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -91,6 +92,16 @@ class AppRouter {
         pageBuilder: (context, state) => _slideUpPage(
           state: state,
           child: const ForgotPasswordScreen(),
+        ),
+      ),
+
+      // Admin/Development Routes
+      GoRoute(
+        path: '/admin/seed-data',
+        name: 'seed-data',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const SeedDataScreen(),
         ),
       ),
 

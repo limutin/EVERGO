@@ -11,6 +11,7 @@ class UserModel {
   final String? avatarUrl;
   final bool isVerified;
   final DateTime createdAt;
+  final String? licenseNumber; // Driver's license number (for drivers)
 
   const UserModel({
     required this.id,
@@ -21,6 +22,7 @@ class UserModel {
     this.avatarUrl,
     this.isVerified = false,
     required this.createdAt,
+    this.licenseNumber,
   });
 
   UserModel copyWith({
@@ -32,6 +34,7 @@ class UserModel {
     String? avatarUrl,
     bool? isVerified,
     DateTime? createdAt,
+    String? licenseNumber,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -42,6 +45,7 @@ class UserModel {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isVerified: isVerified ?? this.isVerified,
       createdAt: createdAt ?? this.createdAt,
+      licenseNumber: licenseNumber ?? this.licenseNumber,
     );
   }
 
@@ -58,6 +62,7 @@ class UserModel {
       avatarUrl: map['avatarUrl'] as String?,
       isVerified: map['isVerified'] as bool? ?? false,
       createdAt: DateTime.parse(map['createdAt'] as String),
+      licenseNumber: map['licenseNumber'] as String?,
     );
   }
 
@@ -71,6 +76,7 @@ class UserModel {
       'avatarUrl': avatarUrl,
       'isVerified': isVerified,
       'createdAt': createdAt.toIso8601String(),
+      if (licenseNumber != null) 'licenseNumber': licenseNumber,
     };
   }
 

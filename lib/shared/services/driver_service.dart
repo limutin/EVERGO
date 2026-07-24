@@ -1,25 +1,32 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/bus_model.dart';
 import '../models/driver_report_model.dart';
-import 'firebase_service.dart';
 
 /// Service for driver-specific operations
-class DriverService extends FirebaseService {
-  CollectionReference get busesCollection => firestore.collection('buses');
-  CollectionReference get driversCollection => firestore.collection('drivers');
-  CollectionReference get reportsCollection => firestore.collection('reports');
-  CollectionReference get tripLogsCollection => firestore.collection('tripLogs');
+/// Uses Firestore for permanent data (assignments, metadata)
+/// Uses RTDB for real-time location tracking
+class DriverService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseDatabase _database = FirebaseDatabase.instance;
 
-  /// Get driver's assigned bus
+  CollectionReference get busesCollection => _firestore.collection('buses');
+  CollectionReference get driversCollection => _firestore.collection('drivers');
+  CollectionReference get reportsCollection => _firestore.collection('reports');
+  CollectionReference get tripLogsCollection => _firestore.collection('tripLogs');
+  
+  DatabaseReference get locationRef => _database.ref('locations');
+
+  /// Get driver's assigned bus from Firestore
   Stream<BusModel?> watchDriverBus(String driverId) {
     return busesCollection
         .where('driverId', isEqualTo: driverId)
         .limit(1)
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
       if (snapshot.docs.isEmpty) return null;
-      return _busFromFirestore(snapshot.docs.first);
+      return await _busFromFirestoreWithRoute(snapshot.docs.first);
     });
   }
 
@@ -37,36 +44,47 @@ class DriverService extends FirebaseService {
     }
   }
 
-  /// Start a trip - update bus status to online
+  /// Start a trip - update bus status in Firestore
   Future<void> startTrip({
     required String busId,
     required String routeId,
     required double latitude,
     required double longitude,
   }) async {
-    final batch = firestore.batch();
+    final batch = _firestore.batch();
 
-    // Update bus status
+    // Update bus status in Firestore
     batch.update(busesCollection.doc(busId), {
       'status': 'online',
-      'position': GeoPoint(latitude, longitude),
       'lastUpdated': FieldValue.serverTimestamp(),
     });
 
-    // Create trip log
+    // Create trip log in Firestore
     final tripLogRef = tripLogsCollection.doc();
     batch.set(tripLogRef, {
       'busId': busId,
       'routeId': routeId,
       'startTime': FieldValue.serverTimestamp(),
-      'startPosition': GeoPoint(latitude, longitude),
+      'startLatitude': latitude,
+      'startLongitude': longitude,
       'status': 'in_progress',
     });
 
     await batch.commit();
+    
+    // Initialize location in RTDB
+    await locationRef.child(busId).set({
+      'latitude': latitude,
+      'longitude': longitude,
+      'speed': 0,
+      'heading': 0,
+      'accuracy': 0,
+      'status': 'online',
+      'lastUpdated': ServerValue.timestamp,
+    });
   }
 
-  /// End trip - update bus status to idle
+  /// End trip - update bus status in Firestore, remove from RTDB
   Future<void> endTrip({
     required String busId,
     required double latitude,
@@ -74,22 +92,22 @@ class DriverService extends FirebaseService {
   }) async {
     await busesCollection.doc(busId).update({
       'status': 'idle',
-      'position': GeoPoint(latitude, longitude),
-      'speed': 0,
       'lastUpdated': FieldValue.serverTimestamp(),
     });
+    
+    // Remove from RTDB locations
+    await locationRef.child(busId).remove();
   }
 
-  /// Pause trip - temporarily set to idle
+  /// Pause trip - update status in Firestore only
   Future<void> pauseTrip(String busId) async {
     await busesCollection.doc(busId).update({
       'status': 'idle',
-      'speed': 0,
       'lastUpdated': FieldValue.serverTimestamp(),
     });
   }
 
-  /// Resume trip - set back to online
+  /// Resume trip - update status in Firestore only
   Future<void> resumeTrip(String busId) async {
     await busesCollection.doc(busId).update({
       'status': 'online',
@@ -97,23 +115,7 @@ class DriverService extends FirebaseService {
     });
   }
 
-  /// Update real-time location during trip
-  Future<void> updateLocation({
-    required String busId,
-    required double latitude,
-    required double longitude,
-    required double speed,
-    required double heading,
-  }) async {
-    await busesCollection.doc(busId).update({
-      'position': GeoPoint(latitude, longitude),
-      'speed': speed,
-      'heading': heading,
-      'lastUpdated': FieldValue.serverTimestamp(),
-    });
-  }
-
-  /// Update passenger count
+  /// Update passenger count in Firestore
   Future<void> updatePassengerCount(String busId, int count) async {
     await busesCollection.doc(busId).update({
       'passengerCount': count,
@@ -121,7 +123,7 @@ class DriverService extends FirebaseService {
     });
   }
 
-  /// Submit a driver report
+  /// Submit a driver report to Firestore
   Future<void> submitReport({
     required String driverId,
     required String busId,
@@ -143,7 +145,7 @@ class DriverService extends FirebaseService {
     });
   }
 
-  /// Get driver's reports
+  /// Get driver's reports from Firestore
   Stream<List<DriverReport>> watchDriverReports(String driverId) {
     return reportsCollection
         .where('driverId', isEqualTo: driverId)
@@ -157,9 +159,7 @@ class DriverService extends FirebaseService {
     });
   }
 
-
-
-  /// Get trip statistics for today
+  /// Get trip statistics for today from Firestore
   Future<Map<String, dynamic>> getTodayStats(String driverId) async {
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
@@ -191,22 +191,51 @@ class DriverService extends FirebaseService {
     }
   }
 
-  /// Convert Firestore document to BusModel
-  BusModel _busFromFirestore(DocumentSnapshot doc) {
+  /// Convert Firestore document to BusModel with route lookup
+  Future<BusModel> _busFromFirestoreWithRoute(DocumentSnapshot doc) async {
     final data = doc.data() as Map<String, dynamic>;
-    final position = data['position'] as GeoPoint?;
     final lastUpdated = data['lastUpdated'] as Timestamp?;
+    final routeId = data['routeId'] as String?;
+
+    // Fetch route name from routes collection if routeId exists
+    String routeName = data['routeName'] as String? ?? 'Unknown Route';
+    if (routeId != null && routeId.isNotEmpty) {
+      try {
+        final routeDoc = await _firestore.collection('routes').doc(routeId).get();
+        if (routeDoc.exists) {
+          final routeData = routeDoc.data() as Map<String, dynamic>;
+          routeName = routeData['name'] as String? ?? routeName;
+          print('✅ Route fetched: $routeName for routeId: $routeId');
+        } else {
+          print('⚠️ Route document not found for routeId: $routeId');
+        }
+      } catch (e) {
+        print('❌ Error fetching route: $e');
+      }
+    }
+
+    // Handle both GeoPoint and separate lat/lng fields
+    LatLng position;
+    if (data.containsKey('position')) {
+      final geoPoint = data['position'] as GeoPoint?;
+      position = geoPoint != null
+          ? LatLng(geoPoint.latitude, geoPoint.longitude)
+          : const LatLng(8.2280, 123.3317);
+    } else {
+      // Use separate latitude/longitude fields
+      final lat = (data['latitude'] as num?)?.toDouble() ?? 8.2280;
+      final lng = (data['longitude'] as num?)?.toDouble() ?? 123.3317;
+      position = LatLng(lat, lng);
+    }
 
     return BusModel(
       id: doc.id,
       busNumber: data['busNumber'] as String? ?? '',
       plateNumber: data['plateNumber'] as String? ?? '',
       driverName: data['driverName'] as String? ?? '',
-      routeId: data['routeId'] as String? ?? '',
-      routeName: data['routeName'] as String? ?? '',
-      position: position != null
-          ? LatLng(position.latitude, position.longitude)
-          : const LatLng(8.2280, 123.3317),
+      routeId: routeId ?? '',
+      routeName: routeName,
+      position: position,
       status: _parseStatus(data['status'] as String?),
       speed: (data['speed'] as num?)?.toDouble() ?? 0.0,
       passengerCount: data['passengerCount'] as int? ?? 0,
@@ -229,8 +258,6 @@ class DriverService extends FirebaseService {
       status: data['status'] as String? ?? 'submitted',
     );
   }
-
-
 
   /// Parse bus status from string
   BusStatus _parseStatus(String? status) {

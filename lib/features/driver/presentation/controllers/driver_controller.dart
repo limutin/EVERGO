@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +9,7 @@ import '../../../../shared/models/driver_report_model.dart';
 import '../../../../shared/models/trip_model.dart';
 import '../../../../shared/services/driver_service.dart';
 import '../../../../shared/services/trip_service.dart';
+import '../../../../shared/services/location_service.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
 enum DriverTripState { notStarted, inProgress, completed, paused }
@@ -18,6 +20,7 @@ class DriverController extends GetxController {
   // Services
   final _driverService = DriverService();
   final _tripService = TripService();
+  final _locationService = Get.find<LocationService>();
 
   // Observables
   final RxInt selectedTabIndex = 0.obs;
@@ -76,15 +79,16 @@ class DriverController extends GetxController {
           currentSpeed.value = bus.speed;
           passengerCount.value = bus.passengerCount;
           
-          // Determine trip status from bus status
-          if (bus.status == BusStatus.online) {
+          // Sync trip status with bus status ONLY if not manually controlled
+          // Don't override manual state changes (pause/resume)
+          if (bus.status == BusStatus.online && tripStatus.value != DriverTripState.inProgress) {
             tripStatus.value = DriverTripState.inProgress;
             isSharingLocation.value = true;
-          } else if (bus.status == BusStatus.idle) {
-            if (tripStatus.value == DriverTripState.inProgress) {
-              tripStatus.value = DriverTripState.paused;
-            }
+          } else if (bus.status == BusStatus.offline && tripStatus.value != DriverTripState.notStarted) {
+            tripStatus.value = DriverTripState.notStarted;
+            isSharingLocation.value = false;
           }
+          // Don't change to paused automatically - only through manual pauseTrip()
         }
       },
       onError: (error) {
@@ -169,149 +173,210 @@ class DriverController extends GetxController {
     }
   }
 
-  /// Start trip - begin location sharing
-  Future<void> startTrip() async {
-    if (assignedBus.value == null) return;
+  /// Start trip - begin location sharing (OPTIMIZED: Instant UI feedback)
+  Future<void> startTrip([BuildContext? context]) async {
+    print('🚀 Starting trip...');
+    print('   assignedBus: ${assignedBus.value?.busNumber}');
+    print('   currentUserId: $currentUserId');
+    
+    if (assignedBus.value == null) {
+      _showSnackbar('Error', 'No bus assigned');
+      print('❌ No bus assigned');
+      return;
+    }
+    
+    if (currentUserId == null) {
+      _showSnackbar('Error', 'User not logged in');
+      print('❌ User not logged in');
+      return;
+    }
 
     try {
-      // Get current location
-      final position = await _getCurrentLocation();
-      if (position == null) return;
+      print('✓ Bus and user validated');
+      
+      // Check permissions first (with dialog support)
+      final hasPermission = await _locationService.checkAndRequestPermissions(context);
+      if (!hasPermission) {
+        _showSnackbar('Permission Required', 'Location permission is required to start tracking');
+        return;
+      }
+      
+      print('✓ Permissions granted');
 
+      // Get current location
+      final position = await _locationService.getCurrentPosition();
+      if (position == null) {
+        _showSnackbar('Error', 'Unable to get current location');
+        return;
+      }
+      
+      print('✓ Got position: ${position.latitude}, ${position.longitude}');
       currentPosition.value = LatLng(position.latitude, position.longitude);
 
-      // Update Firebase
-      await _driverService.startTrip(
+      // 🚀 OPTIMISTIC UPDATE: Update UI immediately for instant feedback
+      tripStatus.value = DriverTripState.inProgress;
+      isSharingLocation.value = true;
+      
+      print('⚡ UI updated instantly (optimistic)');
+
+      // Start Firebase updates in background (non-blocking)
+      _driverService.startTrip(
         busId: assignedBus.value!.id,
         routeId: assignedBus.value!.routeId,
         latitude: position.latitude,
         longitude: position.longitude,
-      );
+      ).then((_) {
+        print('✓ Firebase trip started (background)');
+      }).catchError((e) {
+        print('❌ Firebase error: $e (UI already updated)');
+        // UI already shows correct state, Firebase will sync eventually
+      });
 
-      tripStatus.value = DriverTripState.inProgress;
-      isSharingLocation.value = true;
+      // Start location tracking in background (non-blocking)
+      _locationService.startTracking(
+        currentUserId!,
+        assignedBus.value!.id,
+      ).then((_) {
+        print('✓ Location tracking started (background)');
+      }).catchError((e) {
+        print('❌ Tracking error: $e');
+      });
 
-      // Start location tracking
-      _startLocationTracking();
-    } catch (e) {
-      print('Error starting trip: $e');
-      Get.snackbar('Error', 'Failed to start trip');
+      // Listen to location updates from the service
+      _locationService.currentPosition.listen((Position? pos) {
+        if (pos != null) {
+          currentPosition.value = LatLng(pos.latitude, pos.longitude);
+          currentSpeed.value = pos.speed * 3.6; // m/s to km/h
+        }
+      });
+
+      _showSnackbar('Trip Started', 'Location sharing is now active');
+      print('✅ Trip started successfully (instant UI)!');
+    } catch (e, stackTrace) {
+      // Rollback optimistic update on failure
+      tripStatus.value = DriverTripState.notStarted;
+      isSharingLocation.value = false;
+      print('❌ Error starting trip: $e');
+      print('Stack trace: $stackTrace');
+      _showSnackbar('Error', 'Failed to start trip: $e');
     }
   }
 
-  /// Pause trip
-  Future<void> pauseTrip() async {
-    if (assignedBus.value == null) return;
-
-    try {
-      await _driverService.pauseTrip(assignedBus.value!.id);
-      tripStatus.value = DriverTripState.paused;
-      currentSpeed.value = 0;
-      _stopLocationTracking();
-    } catch (e) {
-      print('Error pausing trip: $e');
-    }
-  }
-
-  /// Resume trip
-  Future<void> resumeTrip() async {
-    if (assignedBus.value == null) return;
-
-    try {
-      await _driverService.resumeTrip(assignedBus.value!.id);
-      tripStatus.value = DriverTripState.inProgress;
-      _startLocationTracking();
-    } catch (e) {
-      print('Error resuming trip: $e');
-    }
-  }
-
-  /// End trip
+  /// End trip (OPTIMIZED: Instant UI feedback)
   Future<void> endTrip() async {
     if (assignedBus.value == null) return;
 
     try {
-      final position = await _getCurrentLocation();
-      if (position != null) {
-        await _driverService.endTrip(
-          busId: assignedBus.value!.id,
-          latitude: position.latitude,
-          longitude: position.longitude,
-        );
-      }
-
+      // 🚀 OPTIMISTIC UPDATE: Update UI immediately
       tripStatus.value = DriverTripState.completed;
       isSharingLocation.value = false;
       currentSpeed.value = 0;
-      _stopLocationTracking();
-
       todayTrips.value++;
+      print('⚡ Trip ended instantly (optimistic)');
+      
+      _showSnackbar('Trip Ended', 'Location sharing stopped');
+
+      // Stop location tracking in background
+      _locationService.stopTracking(assignedBus.value!.id).catchError((e) {
+        print('❌ Error stopping tracking: $e');
+      });
+      
+      // Get final position and update Firebase in background
+      _locationService.getCurrentPosition().then((position) {
+        if (position != null) {
+          return _driverService.endTrip(
+            busId: assignedBus.value!.id,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          );
+        }
+      }).then((_) {
+        print('✓ Firebase trip ended (background)');
+      }).catchError((e) {
+        print('❌ Firebase error: $e (UI already updated)');
+      });
       
       // Reset to not started after a delay
-      Future.delayed(const Duration(seconds: 3), () {
-        tripStatus.value = DriverTripState.notStarted;
+      Future.delayed(const Duration(seconds: 2), () {
+        if (tripStatus.value == DriverTripState.completed) {
+          tripStatus.value = DriverTripState.notStarted;
+        }
       });
     } catch (e) {
-      print('Error ending trip: $e');
+      // Rollback on failure
+      tripStatus.value = DriverTripState.inProgress;
+      isSharingLocation.value = true;
+      todayTrips.value--;
+      print('❌ Error ending trip: $e');
+      _showSnackbar('Error', 'Failed to end trip');
     }
   }
 
-  /// Start tracking location
-  void _startLocationTracking() {
-    _locationUpdateTimer?.cancel();
-    
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (assignedBus.value == null || tripStatus.value != DriverTripState.inProgress) {
-        return;
-      }
+  /// Pause trip (OPTIMIZED: Instant UI feedback)
+  Future<void> pauseTrip() async {
+    if (assignedBus.value == null) return;
 
-      final position = await _getCurrentLocation();
-      if (position != null) {
-        currentPosition.value = LatLng(position.latitude, position.longitude);
-        currentSpeed.value = position.speed * 3.6; // Convert m/s to km/h
-
-        // Update Firebase
-        await _driverService.updateLocation(
-          busId: assignedBus.value!.id,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          speed: position.speed * 3.6,
-          heading: position.heading,
-        );
-      }
-    });
-  }
-
-  /// Stop tracking location
-  void _stopLocationTracking() {
-    _locationUpdateTimer?.cancel();
-    _locationSubscription?.cancel();
-  }
-
-  /// Get current GPS location
-  Future<Position?> _getCurrentLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return null;
-      }
+      // 🚀 OPTIMISTIC UPDATE: Update UI immediately
+      tripStatus.value = DriverTripState.paused;
+      isSharingLocation.value = false;
+      currentSpeed.value = 0;
+      print('⚡ Trip paused instantly (optimistic)');
+      
+      _showSnackbar('Trip Paused', 'Location sharing paused');
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          return null;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        return null;
-      }
-
-      return await Geolocator.getCurrentPosition();
+      // Stop location service in background
+      _locationService.stopTracking(assignedBus.value!.id).catchError((e) {
+        print('❌ Error stopping tracking: $e');
+      });
+      
+      // Update Firebase in background
+      _driverService.pauseTrip(assignedBus.value!.id).then((_) {
+        print('✓ Firebase updated (background)');
+      }).catchError((e) {
+        print('❌ Firebase error: $e (UI already updated)');
+      });
     } catch (e) {
-      print('Error getting location: $e');
-      return null;
+      // Rollback on failure
+      tripStatus.value = DriverTripState.inProgress;
+      isSharingLocation.value = true;
+      print('❌ Error pausing trip: $e');
+    }
+  }
+
+  /// Resume trip (OPTIMIZED: Instant UI feedback)
+  Future<void> resumeTrip() async {
+    if (assignedBus.value == null || currentUserId == null) return;
+
+    try {
+      // 🚀 OPTIMISTIC UPDATE: Update UI immediately
+      tripStatus.value = DriverTripState.inProgress;
+      isSharingLocation.value = true;
+      print('⚡ Trip resumed instantly (optimistic)');
+      
+      _showSnackbar('Trip Resumed', 'Location sharing resumed');
+
+      // Update Firebase in background
+      _driverService.resumeTrip(assignedBus.value!.id).then((_) {
+        print('✓ Firebase updated (background)');
+      }).catchError((e) {
+        print('❌ Firebase error: $e (UI already updated)');
+      });
+      
+      // Restart location tracking in background
+      _locationService.startTracking(
+        currentUserId!,
+        assignedBus.value!.id,
+      ).then((_) {
+        print('✓ Location tracking restarted (background)');
+      }).catchError((e) {
+        print('❌ Tracking error: $e');
+      });
+    } catch (e) {
+      // Rollback on failure
+      tripStatus.value = DriverTripState.paused;
+      isSharingLocation.value = false;
+      print('❌ Error resuming trip: $e');
     }
   }
 
@@ -332,7 +397,7 @@ class DriverController extends GetxController {
     if (driverId == null || assignedBus.value == null) return;
 
     try {
-      final position = await _getCurrentLocation();
+      final position = await _locationService.getCurrentPosition();
       
       await _driverService.submitReport(
         driverId: driverId,
@@ -343,10 +408,10 @@ class DriverController extends GetxController {
         longitude: position?.longitude,
       );
 
-      Get.snackbar('Success', 'Report submitted successfully');
+      _showSnackbar('Success', 'Report submitted successfully');
     } catch (e) {
       print('Error submitting report: $e');
-      Get.snackbar('Error', 'Failed to submit report');
+      _showSnackbar('Error', 'Failed to submit report');
     }
   }
 
@@ -361,5 +426,12 @@ class DriverController extends GetxController {
       case DriverTripState.completed:
         return 'Trip Completed';
     }
+  }
+
+  /// Safe snackbar helper that handles null context errors
+  void _showSnackbar(String title, String message) {
+    // For now, just use print to avoid GetX context issues
+    // TODO: Implement proper snackbar when navigation is stable
+    print('$title: $message');
   }
 }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
+import 'shared/services/location_service.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -19,7 +20,10 @@ Future<void> main() async {
     debugPrint('Firebase init: $e');
   }
 
+  // Initialize global services
   Get.put(AuthController(), permanent: true);
+  Get.put(LocationService(), permanent: true);
+  
   runApp(const MyApp());
 }
 
@@ -38,3 +42,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+

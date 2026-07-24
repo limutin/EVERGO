@@ -16,67 +16,74 @@ class CommuterNotificationsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
-      appBar: AppBar(
-        backgroundColor: AppColors.dark,
-        title: Text(
-          'Notifications',
-          style: GoogleFonts.inter(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: ctrl.markAllNotificationsRead,
-            child: Text(
-              'Mark all read',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.pagePadding),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Notifications',
+                    style: GoogleFonts.inter(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Obx(() {
+                    final unreadCount = ctrl.unreadNotificationCount;
+                    if (unreadCount > 0) {
+                      return TextButton(
+                        onPressed: ctrl.markAllNotificationsRead,
+                        child: Text(
+                          'Mark all read',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
-      body: Obx(() {
-        if (ctrl.notifications.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.notifications_off_outlined,
-                  size: 64,
-                  color: AppColors.textMuted,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No notifications',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 16),
+
+            // Notifications List
+            Expanded(
+              child: Obx(() {
+                final notifications = ctrl.notifications;
+
+                if (notifications.isEmpty) {
+                  return _EmptyNotifications();
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.pagePadding),
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    final notif = notifications[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _NotificationCard(
+                        notification: notif,
+                        onTap: () => ctrl.markNotificationAsRead(notif.id),
+                      ),
+                    );
+                  },
+                );
+              }),
             ),
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSizes.pagePadding, vertical: 8),
-          itemCount: ctrl.notifications.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, i) {
-            final notif = ctrl.notifications[i];
-            return _NotificationCard(
-              notification: notif,
-              onTap: () => ctrl.markNotificationAsRead(notif.id),
-            );
-          },
-        );
-      }),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -90,29 +97,29 @@ class _NotificationCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Color get _typeColor {
+  IconData get _icon {
     switch (notification.type) {
-      case NotificationType.arrival:
-        return AppColors.success;
-      case NotificationType.schedule:
-        return AppColors.primary;
+      case NotificationType.busArrival:
+        return Icons.directions_bus_rounded;
       case NotificationType.delay:
-        return AppColors.warning;
-      case NotificationType.info:
-        return AppColors.accent;
+        return Icons.warning_rounded;
+      case NotificationType.scheduleChange:
+        return Icons.schedule_rounded;
+      case NotificationType.system:
+        return Icons.info_rounded;
     }
   }
 
-  IconData get _typeIcon {
+  Color get _iconColor {
     switch (notification.type) {
-      case NotificationType.arrival:
-        return Icons.directions_bus_rounded;
-      case NotificationType.schedule:
-        return Icons.schedule_rounded;
+      case NotificationType.busArrival:
+        return AppColors.success;
       case NotificationType.delay:
-        return Icons.warning_rounded;
-      case NotificationType.info:
-        return Icons.info_outline_rounded;
+        return AppColors.warning;
+      case NotificationType.scheduleChange:
+        return AppColors.accent;
+      case NotificationType.system:
+        return AppColors.primary;
     }
   }
 
@@ -120,98 +127,143 @@ class _NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeAgo = _formatTimeAgo(notification.timestamp);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: notification.isRead
-              ? AppColors.cardDark
-              : AppColors.cardDark2,
-          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-          border: Border.all(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
             color: notification.isRead
-                ? AppColors.dividerDark
-                : _typeColor.withValues(alpha: 0.3),
+                ? AppColors.cardDark
+                : AppColors.cardDark2,
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+            border: Border.all(
+              color: notification.isRead
+                  ? AppColors.dividerDark
+                  : AppColors.primary.withValues(alpha: 0.3),
+            ),
           ),
-          boxShadow: AppColors.cardShadow,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _typeColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _iconColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(_icon, color: _iconColor, size: 20),
               ),
-              child: Icon(_typeIcon, color: _typeColor, size: 20),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
 
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          notification.title,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: notification.isRead
-                                ? FontWeight.w500
-                                : FontWeight.w700,
-                            color: AppColors.textPrimary,
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
+                        if (!notification.isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      notification.message,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
                       ),
-                      if (!notification.isRead)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: _typeColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    notification.body,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      height: 1.4,
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    timeAgo,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
+                    const SizedBox(height: 6),
+                    Text(
+                      timeAgo,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   String _formatTimeAgo(DateTime timestamp) {
-    final diff = DateTime.now().difference(timestamp);
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return DateFormat('MMM d').format(timestamp);
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return DateFormat('MMM d, y').format(timestamp);
+    }
+  }
+}
+
+class _EmptyNotifications extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 80,
+            color: AppColors.textMuted.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No notifications yet',
+            style: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'You\'ll see important updates here',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

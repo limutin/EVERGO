@@ -31,7 +31,7 @@ class _DriverEditProfileScreenState extends State<DriverEditProfileScreen> {
     if (user != null) {
       _nameController.text = user.name;
       _phoneController.text = user.phone ?? '';
-      _licenseController.text = 'N01-12-345678'; // TODO: Get from user data
+      _licenseController.text = user.licenseNumber ?? '';
     }
   }
 
@@ -49,27 +49,134 @@ class _DriverEditProfileScreenState extends State<DriverEditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Implement profile update in AuthController
-      await Future.delayed(const Duration(seconds: 1)); // Simulated save
+      final success = await _authController.updateProfile(
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        licenseNumber: _licenseController.text.trim(),
+      );
 
       if (mounted) {
-        Get.back();
-        Get.snackbar(
-          'Success',
-          'Profile updated successfully',
-          backgroundColor: AppColors.success.withValues(alpha: 0.1),
-          colorText: AppColors.success,
-        );
+        if (success) {
+          Get.back();
+          // Show success message using native Flutter dialog
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppColors.backgroundDark,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppColors.success, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Success',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                'Profile updated successfully',
+                style: GoogleFonts.inter(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.inter(color: AppColors.accent),
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else {
+          // Show error message using native Flutter dialog
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppColors.backgroundDark,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.error, color: AppColors.error, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Error',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                _authController.errorMessage.value.isEmpty
+                    ? 'Failed to update profile'
+                    : _authController.errorMessage.value,
+                style: GoogleFonts.inter(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.inter(color: AppColors.accent),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to update profile',
-        backgroundColor: AppColors.error.withValues(alpha: 0.1),
-        colorText: AppColors.error,
-      );
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.backgroundDark,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.error, color: AppColors.error, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'Error',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              'Failed to update profile: $e',
+              style: GoogleFonts.inter(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.inter(color: AppColors.accent),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

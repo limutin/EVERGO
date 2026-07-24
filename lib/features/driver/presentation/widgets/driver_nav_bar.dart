@@ -3,135 +3,184 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/routes/route_names.dart';
 import '../controllers/driver_controller.dart';
 
-class DriverShell extends StatelessWidget {
+/// Shell widget that wraps driver screens with a bottom navigation bar
+class DriverShell extends StatefulWidget {
   final Widget child;
+
   const DriverShell({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
-    final ctrl = Get.put(DriverController());
-    
-    // Sync tab index with current route
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final location = GoRouter.of(context).routerDelegate.currentConfiguration.uri.toString();
-      ctrl.setTabFromRoute(location);
-    });
+  State<DriverShell> createState() => _DriverShellState();
+}
 
+class _DriverShellState extends State<DriverShell> {
+  late DriverController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize DriverController if not already initialized
+    if (!Get.isRegistered<DriverController>()) {
+      Get.put(DriverController());
+    }
+    _controller = Get.find<DriverController>();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
-      body: child,
-      bottomNavigationBar: _DriverNavBar(controller: ctrl),
+      body: widget.child,
+      bottomNavigationBar: const DriverNavBar(),
     );
   }
 }
 
-class _DriverNavBar extends StatelessWidget {
-  final DriverController controller;
-
-  const _DriverNavBar({required this.controller});
+/// Bottom navigation bar for driver screens
+class DriverNavBar extends StatelessWidget {
+  const DriverNavBar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      (icon: Icons.dashboard_rounded, label: 'Dashboard'),
-      (icon: Icons.navigation_rounded, label: 'Active'),
-      (icon: Icons.route_rounded, label: 'Routes'),
-      (icon: Icons.report_rounded, label: 'Reports'),
-      (icon: Icons.person_rounded, label: 'Profile'),
-    ];
+    final ctrl = Get.find<DriverController>();
 
-    return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceDark,
+    return Obx(() => Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardDark,
             border: Border(
-              top: BorderSide(color: AppColors.dividerDark, width: 1),
+              top: BorderSide(
+                color: AppColors.dividerDark,
+                width: 1,
+              ),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
           child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: AppSizes.bottomNavHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               child: Row(
-                children: List.generate(items.length, (index) {
-                  final item = items[index];
-                  return Expanded(
-                    child: Obx(() {
-                      final isSelected =
-                          controller.selectedTabIndex.value == index;
-                      return GestureDetector(
-                        onTap: () {
-                          controller.changeTab(index);
-                          _navigateToDriverTab(context, index);
-                        },
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.accent.withValues(alpha: 0.12)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                item.icon,
-                                color: isSelected
-                                    ? AppColors.accent
-                                    : AppColors.textMuted,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              item.label,
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: isSelected
-                                    ? AppColors.accent
-                                    : AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  );
-                }),
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _NavItem(
+                    icon: Icons.dashboard_rounded,
+                    label: 'Dashboard',
+                    isActive: ctrl.selectedTabIndex.value == 0,
+                    onTap: () {
+                      ctrl.changeTab(0);
+                      context.go(RouteNames.driverDashboard);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.timeline_rounded,
+                    label: 'Active',
+                    isActive: ctrl.selectedTabIndex.value == 1,
+                    onTap: () {
+                      ctrl.changeTab(1);
+                      context.go(RouteNames.driverActiveRoute);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.route_rounded,
+                    label: 'Routes',
+                    isActive: ctrl.selectedTabIndex.value == 2,
+                    onTap: () {
+                      ctrl.changeTab(2);
+                      context.go(RouteNames.driverRoutes);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.assessment_rounded,
+                    label: 'Reports',
+                    isActive: ctrl.selectedTabIndex.value == 3,
+                    onTap: () {
+                      ctrl.changeTab(3);
+                      context.go(RouteNames.driverReports);
+                    },
+                  ),
+                  _NavItem(
+                    icon: Icons.person_rounded,
+                    label: 'Profile',
+                    isActive: ctrl.selectedTabIndex.value == 4,
+                    onTap: () {
+                      ctrl.changeTab(4);
+                      context.go(RouteNames.driverProfile);
+                    },
+                  ),
+                ],
               ),
             ),
           ),
-        );
+        ));
   }
+}
 
-  void _navigateToDriverTab(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go(RouteNames.driverDashboard);
-        break;
-      case 1:
-        context.go(RouteNames.driverActiveRoute);
-        break;
-      case 2:
-        context.go(RouteNames.driverRoutes);
-        break;
-      case 3:
-        context.go(RouteNames.driverReports);
-        break;
-      case 4:
-        context.go(RouteNames.driverProfile);
-        break;
-    }
-  }
-  }
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
 
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.accent.withValues(alpha: 0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isActive
+                        ? AppColors.accent
+                        : AppColors.textMuted,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                    color: isActive
+                        ? AppColors.accent
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
