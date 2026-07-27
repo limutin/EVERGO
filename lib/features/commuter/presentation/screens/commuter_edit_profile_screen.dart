@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/validators.dart';
@@ -22,6 +23,8 @@ class _CommuterEditProfileScreenState extends State<CommuterEditProfileScreen> {
   final _phoneController = TextEditingController();
   final _isLoading = false.obs;
   final _authCtrl = Get.find<AuthController>();
+  final _imagePicker = ImagePicker();
+  File? _selectedImage;
 
   @override
   void initState() {
@@ -37,45 +40,96 @@ class _CommuterEditProfileScreenState extends State<CommuterEditProfileScreen> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to pick image: $e',
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     _isLoading.value = true;
 
     try {
-      final userId = _authCtrl.currentUser.value?.id;
-      if (userId == null) return;
+      // Upload profile photo if selected
+      if (_selectedImage != null) {
+        final photoSuccess = await _authCtrl.uploadProfilePhoto(_selectedImage!);
+        if (!photoSuccess) {
+          Get.snackbar(
+            'Error',
+            'Failed to upload profile photo',
+            backgroundColor: AppColors.error,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 3),
+          );
+          _isLoading.value = false;
+          return;
+        }
+      }
 
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Update local user model
-      final updatedUser = _authCtrl.currentUser.value?.copyWith(
+      // Update profile information
+      final success = await _authCtrl.updateProfile(
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
       );
-      _authCtrl.currentUser.value = updatedUser;
 
-      Get.snackbar(
-        'Success',
-        'Profile updated successfully',
-        backgroundColor: AppColors.success,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (mounted) {
+        if (success) {
+          Get.snackbar(
+            'Success',
+            'Profile updated successfully',
+            backgroundColor: AppColors.success,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 2),
+          );
 
-      Navigator.of(context).pop();
+          Navigator.of(context).pop();
+        } else {
+          Get.snackbar(
+            'Error',
+            _authCtrl.errorMessage.value.isNotEmpty
+                ? _authCtrl.errorMessage.value
+                : 'Failed to update profile',
+            backgroundColor: AppColors.error,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 3),
+          );
+        }
+      }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to update profile: $e',
-        backgroundColor: AppColors.error,
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (mounted) {
+        Get.snackbar(
+          'Error',
+          'Failed to update profile: $e',
+          backgroundColor: AppColors.error,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+      }
     } finally {
       _isLoading.value = false;
     }
@@ -116,57 +170,75 @@ class _CommuterEditProfileScreenState extends State<CommuterEditProfileScreen> {
             children: [
               const SizedBox(height: 8),
               
-              // Avatar Section
+              // Avatar Section with photo picker
               Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          _getInitials(_nameController.text),
-                          style: GoogleFonts.inter(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 32,
-                        height: 32,
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
+                          gradient: _selectedImage == null && _authCtrl.currentUser.value?.avatarUrl == null
+                              ? AppColors.primaryGradient
+                              : null,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.backgroundDark,
-                            width: 3,
+                          image: _selectedImage != null
+                              ? DecorationImage(
+                                  image: FileImage(_selectedImage!),
+                                  fit: BoxFit.cover,
+                                )
+                              : _authCtrl.currentUser.value?.avatarUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(_authCtrl.currentUser.value!.avatarUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: _selectedImage == null && _authCtrl.currentUser.value?.avatarUrl == null
+                            ? Center(
+                                child: Text(
+                                  _getInitials(_nameController.text),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.backgroundDark,
+                              width: 3,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white,
+                            size: 16,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.camera_alt_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 32),

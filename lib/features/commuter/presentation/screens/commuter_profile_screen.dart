@@ -104,7 +104,13 @@ class _CommuterProfileScreenState extends State<CommuterProfileScreen> {
               const SizedBox(height: 24),
 
               // Avatar & Info
-              _ProfileAvatar(name: user?.name ?? 'Commuter'),
+              Obx(() {
+                final user = authCtrl.currentUser.value;
+                return _ProfileAvatar(
+                  name: user?.name ?? 'Commuter',
+                  avatarUrl: user?.avatarUrl,
+                );
+              }),
               const SizedBox(height: 16),
               Text(
                 user?.name ?? 'Maria Santos',
@@ -183,24 +189,28 @@ class _CommuterProfileScreenState extends State<CommuterProfileScreen> {
                   _ProfileItem(
                     icon: Icons.person_outline_rounded,
                     label: 'Edit Profile',
-                    onTap: () {
-                      Navigator.of(context).push(
+                    onTap: () async {
+                      await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => const CommuterEditProfileScreen(),
                         ),
                       );
+                      // Reload user data after returning from edit screen
+                      setState(() {});
                     },
                   ),
                   _ProfileItem(
                     icon: Icons.phone_outlined,
                     label: user?.phone ?? '+63 912 345 6789',
                     subtitle: 'Phone number',
-                    onTap: () {
-                      Navigator.of(context).push(
+                    onTap: () async {
+                      await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => const CommuterEditProfileScreen(),
                         ),
                       );
+                      // Reload user data after returning from edit screen
+                      setState(() {});
                     },
                   ),
                   _ProfileItem(
@@ -372,8 +382,9 @@ class _CommuterProfileScreenState extends State<CommuterProfileScreen> {
 
 class _ProfileAvatar extends StatelessWidget {
   final String name;
+  final String? avatarUrl;
 
-  const _ProfileAvatar({required this.name});
+  const _ProfileAvatar({required this.name, this.avatarUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -382,8 +393,14 @@ class _ProfileAvatar extends StatelessWidget {
       width: 90,
       height: 90,
       decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
+        gradient: avatarUrl == null ? AppColors.primaryGradient : null,
         shape: BoxShape.circle,
+        image: avatarUrl != null
+            ? DecorationImage(
+                image: NetworkImage(avatarUrl!),
+                fit: BoxFit.cover,
+              )
+            : null,
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.35),
@@ -392,16 +409,18 @@ class _ProfileAvatar extends StatelessWidget {
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          initials.toUpperCase(),
-          style: GoogleFonts.inter(
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-      ),
+      child: avatarUrl == null
+          ? Center(
+              child: Text(
+                initials.toUpperCase(),
+                style: GoogleFonts.inter(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

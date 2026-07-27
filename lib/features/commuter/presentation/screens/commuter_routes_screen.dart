@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/routes/route_names.dart';
 import '../../../../shared/models/bus_model.dart';
 import '../controllers/commuter_controller.dart';
+import 'commuter_route_details_screen.dart';
 
 class CommuterRoutesScreen extends StatelessWidget {
   const CommuterRoutesScreen({super.key});
@@ -82,8 +81,12 @@ class CommuterRoutesScreen extends StatelessWidget {
                         route: route,
                         activeBusCount: activeBusCount,
                         onTap: () {
-                          // Navigate to map with this route selected
-                          context.go(RouteNames.commuterMap);
+                          // Navigate to route details screen
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => CommuterRouteDetailsScreen(route: route),
+                            ),
+                          );
                         },
                       ),
                     );

@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:get/get.dart';
+import 'dart:io';
 import '../../../../shared/models/user_model.dart';
 
 class AuthController extends GetxController {
@@ -8,6 +10,7 @@ class AuthController extends GetxController {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
   final RxBool isLoading = false.obs;
@@ -50,8 +53,10 @@ class AuthController extends GetxController {
           email: data['email'] as String? ?? '',
           phone: data['phone'] as String?,
           role: role,
+          avatarUrl: data['avatarUrl'] as String?,
           isVerified: _auth.currentUser?.emailVerified ?? false,
           createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          licenseNumber: data['licenseNumber'] as String?,
         );
         selectedRole.value = role;
       }
@@ -301,6 +306,60 @@ class AuthController extends GetxController {
     } catch (e) {
       errorMessage.value = 'Failed to change password';
       print('❌ Password change error: $e');
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Upload profile photo to Firebase Storage and update user profile
+  Future<bool> uploadProfilePhoto(File imageFile) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        errorMessage.value = 'No user logged in';
+        return false;
+      }
+
+      final uid = user.uid;
+      final fileExtension = imageFile.path.split('.').last;
+      final fileName = 'profile_$uid.$fileExtension';
+      final storageRef = _storage.ref().child('profile_photos/$fileName');
+
+      // Upload file to Firebase Storage
+      print('📤 Uploading profile photo...');
+      final uploadTask = await storageRef.putFile(imageFile);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      print('✅ Photo uploaded: $downloadUrl');
+
+      // Update Firestore user document
+      await _firestore.collection('users').doc(uid).update({
+        'avatarUrl': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update Firebase Auth photo URL
+      await user.updatePhotoURL(downloadUrl);
+
+      // Update local state
+      if (currentUser.value != null) {
+        currentUser.value = currentUser.value!.copyWith(
+          avatarUrl: downloadUrl,
+        );
+      }
+
+      print('✅ Profile photo updated successfully');
+      return true;
+    } on FirebaseException catch (e) {
+      errorMessage.value = 'Failed to upload photo: ${e.message}';
+      print('❌ Photo upload error: ${e.message}');
+      return false;
+    } catch (e) {
+      errorMessage.value = 'Failed to upload photo';
+      print('❌ Photo upload error: $e');
       return false;
     } finally {
       isLoading.value = false;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/validators.dart';
@@ -22,7 +24,9 @@ class _DriverEditProfileScreenState extends State<DriverEditProfileScreen> {
   final _phoneController = TextEditingController();
   final _licenseController = TextEditingController();
   final _authController = Get.find<AuthController>();
+  final _imagePicker = ImagePicker();
   bool _isLoading = false;
+  File? _selectedImage;
 
   @override
   void initState() {
@@ -43,12 +47,42 @@ class _DriverEditProfileScreenState extends State<DriverEditProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      _showErrorDialog('Failed to pick image: $e');
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      // Upload profile photo if selected
+      if (_selectedImage != null) {
+        final photoSuccess = await _authController.uploadProfilePhoto(_selectedImage!);
+        if (!photoSuccess) {
+          _showErrorDialog('Failed to upload profile photo');
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
+      // Update profile information
       final success = await _authController.updateProfile(
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -95,89 +129,58 @@ class _DriverEditProfileScreenState extends State<DriverEditProfileScreen> {
             ),
           );
         } else {
-          // Show error message using native Flutter dialog
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              backgroundColor: AppColors.backgroundDark,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-              ),
-              title: Row(
-                children: [
-                  Icon(Icons.error, color: AppColors.error, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Error',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                _authController.errorMessage.value.isEmpty
-                    ? 'Failed to update profile'
-                    : _authController.errorMessage.value,
-                style: GoogleFonts.inter(color: Colors.white70),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'OK',
-                    style: GoogleFonts.inter(color: AppColors.accent),
-                  ),
-                ),
-              ],
-            ),
-          );
+          _showErrorDialog(_authController.errorMessage.value.isEmpty
+              ? 'Failed to update profile'
+              : _authController.errorMessage.value);
         }
       }
     } catch (e) {
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: AppColors.backgroundDark,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-            ),
-            title: Row(
-              children: [
-                Icon(Icons.error, color: AppColors.error, size: 24),
-                const SizedBox(width: 12),
-                Text(
-                  'Error',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            content: Text(
-              'Failed to update profile: $e',
-              style: GoogleFonts.inter(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'OK',
-                  style: GoogleFonts.inter(color: AppColors.accent),
-                ),
-              ),
-            ],
-          ),
-        );
+        _showErrorDialog('Failed to update profile: $e');
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.backgroundDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.error, color: AppColors.error, size: 24),
+            const SizedBox(width: 12),
+            Text(
+              'Error',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: GoogleFonts.inter(color: AppColors.accent),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -207,55 +210,73 @@ class _DriverEditProfileScreenState extends State<DriverEditProfileScreen> {
             children: [
               const SizedBox(height: 24),
               
-              // Avatar
-              Stack(
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: AppColors.accentGradient,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accent.withValues(alpha: 0.35),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+              // Avatar with photo picker
+              GestureDetector(
+                onTap: _pickImage,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: _selectedImage == null && _authController.currentUser.value?.avatarUrl == null
+                            ? AppColors.accentGradient
+                            : null,
+                        image: _selectedImage != null
+                            ? DecorationImage(
+                                image: FileImage(_selectedImage!),
+                                fit: BoxFit.cover,
+                              )
+                            : _authController.currentUser.value?.avatarUrl != null
+                                ? DecorationImage(
+                                    image: NetworkImage(_authController.currentUser.value!.avatarUrl!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accent.withValues(alpha: 0.35),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: _selectedImage == null && _authController.currentUser.value?.avatarUrl == null
+                          ? Center(
+                              child: Text(
+                                _nameController.text.isNotEmpty
+                                    ? _nameController.text.split(' ').take(2).map((w) => w[0]).join().toUpperCase()
+                                    : 'JD',
+                                style: GoogleFonts.inter(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          : null,
                     ),
-                    child: Center(
-                      child: Text(
-                        _nameController.text.isNotEmpty
-                            ? _nameController.text.split(' ').take(2).map((w) => w[0]).join().toUpperCase()
-                            : 'JD',
-                        style: GoogleFonts.inter(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w800,
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.backgroundDark, width: 3),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_rounded,
+                          size: 16,
                           color: Colors.white,
                         ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.backgroundDark, width: 3),
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               
               const SizedBox(height: 32),

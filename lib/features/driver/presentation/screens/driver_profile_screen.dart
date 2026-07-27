@@ -18,7 +18,6 @@ class DriverProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authCtrl = Get.find<AuthController>();
     final driverCtrl = Get.find<DriverController>();
-    final user = authCtrl.currentUser.value;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
@@ -44,49 +43,69 @@ class DriverProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Avatar
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  gradient: AppColors.accentGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.35),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+              // Avatar - Reactive
+              Obx(() {
+                final user = authCtrl.currentUser.value;
+                return Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    gradient: user?.avatarUrl == null ? AppColors.accentGradient : null,
+                    shape: BoxShape.circle,
+                    image: user?.avatarUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(user!.avatarUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accent.withValues(alpha: 0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: user?.avatarUrl == null
+                      ? Center(
+                          child: Text(
+                            user?.name.split(' ').take(2).map((w) => w[0]).join().toUpperCase() ?? 'JD',
+                            style: GoogleFonts.inter(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      : null,
+                );
+              }),
+              const SizedBox(height: 16),
+              
+              // Name & Email - Reactive
+              Obx(() {
+                final user = authCtrl.currentUser.value;
+                return Column(
+                  children: [
+                    Text(
+                      user?.name ?? 'Juan dela Cruz',
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user?.email ?? 'driver@evergo.ph',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
-                ),
-                child: Center(
-                  child: Text(
-                    user?.name.split(' ').take(2).map((w) => w[0]).join().toUpperCase() ?? 'JD',
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                user?.name ?? 'Juan dela Cruz',
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                user?.email ?? 'driver@evergo.ph',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 8),
               // Driver badge
               Container(
@@ -297,34 +316,41 @@ class DriverProfileScreen extends StatelessWidget {
               }),
               const SizedBox(height: 16),
 
-              // Profile Menu
-              _ProfileSection(
-                title: 'Account',
-                items: [
-                  _ProfileItem(
-                    icon: Icons.person_outline_rounded,
-                    label: 'Edit Profile',
-                    onTap: () {
-                      Get.to(() => const DriverEditProfileScreen());
-                    },
-                  ),
-                  _ProfileItem(
-                    icon: Icons.phone_outlined,
-                    label: user?.phone ?? '+63 917 654 3210',
-                    subtitle: 'Phone number',
-                    onTap: () {
-                      Get.to(() => const DriverEditProfileScreen());
-                    },
-                  ),
-                  _ProfileItem(
-                    icon: Icons.lock_outline_rounded,
-                    label: 'Change Password',
-                    onTap: () {
-                      Get.to(() => const DriverChangePasswordScreen());
-                    },
-                  ),
-                ],
-              ),
+              // Profile Menu - Reactive
+              Obx(() {
+                final user = authCtrl.currentUser.value;
+                return Column(
+                  children: [
+                    _ProfileSection(
+                      title: 'Account',
+                      items: [
+                        _ProfileItem(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Edit Profile',
+                          onTap: () {
+                            Get.to(() => const DriverEditProfileScreen());
+                          },
+                        ),
+                        _ProfileItem(
+                          icon: Icons.phone_outlined,
+                          label: user?.phone ?? '+63 917 654 3210',
+                          subtitle: 'Phone number',
+                          onTap: () {
+                            Get.to(() => const DriverEditProfileScreen());
+                          },
+                        ),
+                        _ProfileItem(
+                          icon: Icons.lock_outline_rounded,
+                          label: 'Change Password',
+                          onTap: () {
+                            Get.to(() => const DriverChangePasswordScreen());
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }),
               const SizedBox(height: 16),
               _ProfileSection(
                 title: 'Work',
