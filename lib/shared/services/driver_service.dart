@@ -123,6 +123,15 @@ class DriverService {
     });
   }
 
+  /// Update route direction (toggle between normal and reversed)
+  Future<void> updateBusDirection(String busId, bool isReversed) async {
+    await busesCollection.doc(busId).update({
+      'isReversed': isReversed,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    });
+    print('✅ Bus direction updated: ${isReversed ? "Reversed" : "Normal"}');
+  }
+
   /// Submit a driver report to Firestore
   Future<void> submitReport({
     required String driverId,
@@ -242,6 +251,7 @@ class DriverService {
       capacity: data['capacity'] as int? ?? 50,
       lastUpdated: lastUpdated?.toDate() ?? DateTime.now(),
       heading: (data['heading'] as num?)?.toDouble() ?? 0.0,
+      isReversed: data['isReversed'] as bool? ?? false, // Read direction from Firebase
     );
   }
 

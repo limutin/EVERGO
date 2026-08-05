@@ -34,86 +34,92 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
       body: Stack(
         children: [
           // Map
-          Obx(() => FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: ctrl.currentPosition.value,
-                  initialZoom: 14,
-                  backgroundColor: const Color(0xFFF5F5F5), // Light gray background
+          Obx(() {
+            final isReversed = ctrl.assignedBus.value?.isReversed ?? false;
+            final directionalStops = route.getDirectionalStops(isReversed);
+            final directionalPolyline = route.getDirectionalPolyline(isReversed);
+            
+            return FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: ctrl.currentPosition.value,
+                initialZoom: 14,
+                backgroundColor: const Color(0xFFF5F5F5), // Light gray background
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                  subdomains: const ['a', 'b', 'c', 'd'],
+                  userAgentPackageName: 'com.evergo.evergo_bus_tracker',
+                  retinaMode: true,
                 ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                    subdomains: const ['a', 'b', 'c', 'd'],
-                    userAgentPackageName: 'com.evergo.evergo_bus_tracker',
-                    retinaMode: true,
-                  ),
-                  // Route Polyline
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: route.polyline,
-                        color: AppColors.accent.withValues(alpha: 0.8),
-                        strokeWidth: 5,
+                // Route Polyline (updates with direction)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: directionalPolyline,
+                      color: AppColors.accent.withValues(alpha: 0.8),
+                      strokeWidth: 5,
+                    ),
+                  ],
+                ),
+                // Stop markers (updates with direction)
+                MarkerLayer(
+                  markers: directionalStops.map((stop) {
+                    return Marker(
+                      point: stop.position,
+                      width: 32,
+                      height: 32,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceDark,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.accent,
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.location_on_rounded,
+                          size: 14,
+                          color: AppColors.accent,
+                        ),
                       ),
-                    ],
-                  ),
-                  // Stop markers
-                  MarkerLayer(
-                    markers: route.stops.map((stop) {
-                      return Marker(
-                        point: stop.position,
-                        width: 32,
-                        height: 32,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceDark,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.accent,
-                              width: 2,
+                    );
+                  }).toList(),
+                ),
+                // Driver's current position
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: ctrl.currentPosition.value,
+                      width: 56,
+                      height: 56,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accent.withValues(alpha: 0.5),
+                              blurRadius: 12,
+                              spreadRadius: 4,
                             ),
-                          ),
-                          child: const Icon(
-                            Icons.location_on_rounded,
-                            size: 14,
-                            color: AppColors.accent,
-                          ),
+                          ],
                         ),
-                      );
-                    }).toList(),
-                  ),
-                  // Driver's current position
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: ctrl.currentPosition.value,
-                        width: 56,
-                        height: 56,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.accent.withValues(alpha: 0.5),
-                                blurRadius: 12,
-                                spreadRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.directions_bus_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
+                        child: const Icon(
+                          Icons.directions_bus_rounded,
+                          color: Colors.white,
+                          size: 28,
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              )),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }),
 
           // Top Bar
           Positioned(
@@ -150,18 +156,55 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                               size: 16,
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              route.name,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
+                            Expanded(
+                              child: Obx(() {
+                                final bus = ctrl.assignedBus.value;
+                                final displayName = bus?.directionAwareRouteName ?? route.name;
+                                return Text(
+                                  displayName,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                );
+                              }),
                             ),
                           ],
                         ),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    // Direction toggle button (NEW!)
+                    Obx(() => GestureDetector(
+                          onTap: () => ctrl.toggleDirection(),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.cardDark.withValues(alpha: 0.97),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: AppColors.accent.withValues(alpha: 0.3),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.accent.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              ctrl.assignedBus.value?.isReversed == true
+                                  ? Icons.arrow_back_rounded
+                                  : Icons.arrow_forward_rounded,
+                              color: AppColors.accent,
+                              size: 20,
+                            ),
+                          ),
+                        )),
                     const SizedBox(width: 10),
                     // Location share toggle (IMPROVED: Better visibility)
                     Obx(() => GestureDetector(
@@ -307,72 +350,78 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                   const SizedBox(height: 12),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 82),
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: route.stops.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(width: 8),
-                      itemBuilder: (context, i) {
-                        final stop = route.stops[i];
-                        final isFirst = i == 0;
-                        final isLast = i == route.stops.length - 1;
-                        return Container(
-                          width: 130,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: isFirst || isLast
-                                ? AppColors.accent.withValues(alpha: 0.08)
-                                : AppColors.cardDark2,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
+                    child: Obx(() {
+                      // Get stops in correct direction based on isReversed flag
+                      final isReversed = ctrl.assignedBus.value?.isReversed ?? false;
+                      final directionalStops = route.getDirectionalStops(isReversed);
+                      
+                      return ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: directionalStops.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(width: 8),
+                        itemBuilder: (context, i) {
+                          final stop = directionalStops[i];
+                          final isFirst = i == 0;
+                          final isLast = i == directionalStops.length - 1;
+                          return Container(
+                            width: 130,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
                               color: isFirst || isLast
-                                  ? AppColors.accent.withValues(alpha: 0.3)
-                                  : AppColors.dividerDark,
+                                  ? AppColors.accent.withValues(alpha: 0.08)
+                                  : AppColors.cardDark2,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isFirst || isLast
+                                    ? AppColors.accent.withValues(alpha: 0.3)
+                                    : AppColors.dividerDark,
+                              ),
+                              boxShadow: AppColors.cardShadow,
                             ),
-                            boxShadow: AppColors.cardShadow,
-                          ),
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                isFirst
-                                    ? 'START'
-                                    : isLast
-                                        ? 'END'
-                                        : 'STOP ${i + 1}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 8,
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                stop.name,
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (stop.estimatedTime != null)
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Text(
-                                  stop.estimatedTime!,
+                                  isFirst
+                                      ? 'START'
+                                      : isLast
+                                          ? 'END'
+                                          : 'STOP ${i + 1}',
                                   style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    color: AppColors.textMuted,
+                                    fontSize: 8,
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1,
                                   ),
                                 ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  stop.name,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (stop.estimatedTime != null)
+                                  Text(
+                                    stop.estimatedTime!,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    }),
                   ),
                 ],
               ),

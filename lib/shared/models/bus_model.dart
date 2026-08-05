@@ -18,6 +18,7 @@ class BusModel {
   final int capacity;
   final DateTime lastUpdated;
   final double heading; // degrees
+  final bool isReversed; // Track route direction (false = A→B, true = B→A)
 
   const BusModel({
     required this.id,
@@ -33,6 +34,7 @@ class BusModel {
     this.capacity = 50,
     required this.lastUpdated,
     this.heading = 0,
+    this.isReversed = false, // Default: normal direction
   });
 
   String get statusLabel {
@@ -47,6 +49,45 @@ class BusModel {
   }
 
   double get occupancyRate => passengerCount / capacity;
+
+  /// Get direction-aware route name
+  /// If route is "Dipolog ↔ Dapitan" and isReversed=false, returns "Dipolog → Dapitan"
+  /// If isReversed=true, returns "Dapitan → Dipolog"
+  String get directionAwareRouteName {
+    // Check if route name contains bidirectional arrow
+    if (routeName.contains('↔')) {
+      final parts = routeName.split('↔').map((s) => s.trim()).toList();
+      if (parts.length == 2) {
+        return isReversed 
+            ? '${parts[1]} → ${parts[0]}'  // Reversed: B → A
+            : '${parts[0]} → ${parts[1]}';  // Normal: A → B
+      }
+    }
+    // Fallback: return original name
+    return routeName;
+  }
+
+  /// Get starting point based on direction
+  String get startingPoint {
+    if (routeName.contains('↔')) {
+      final parts = routeName.split('↔').map((s) => s.trim()).toList();
+      if (parts.length == 2) {
+        return isReversed ? parts[1] : parts[0];
+      }
+    }
+    return routeName.split('↔').first.trim();
+  }
+
+  /// Get destination based on direction
+  String get destination {
+    if (routeName.contains('↔')) {
+      final parts = routeName.split('↔').map((s) => s.trim()).toList();
+      if (parts.length == 2) {
+        return isReversed ? parts[0] : parts[1];
+      }
+    }
+    return routeName.split('↔').last.trim();
+  }
 
   // Mock buses for Dipolog ↔ Dapitan route
   static List<BusModel> mockBuses = [
@@ -140,6 +181,31 @@ class BusRouteModel {
     this.activeBuses = 0,
     this.isActive = true,
   });
+
+  /// Get stops in correct order based on direction
+  /// If isReversed=true, returns stops in reverse order (Dapitan→Dipolog)
+  List<RouteStop> getDirectionalStops(bool isReversed) {
+    if (isReversed) {
+      // Reverse the stops and update orderIndex
+      final reversed = stops.reversed.toList();
+      return List.generate(
+        reversed.length,
+        (i) => RouteStop(
+          id: reversed[i].id,
+          name: reversed[i].name,
+          position: reversed[i].position,
+          orderIndex: i, // Update index to reflect new order
+          estimatedTime: reversed[i].estimatedTime,
+        ),
+      );
+    }
+    return stops;
+  }
+
+  /// Get polyline in correct order based on direction
+  List<LatLng> getDirectionalPolyline(bool isReversed) {
+    return isReversed ? polyline.reversed.toList() : polyline;
+  }
 
   // Single route: Dipolog ↔ Dapitan (Based on Evergood Transportation ticket)
   static List<BusRouteModel> mockRoutes = [

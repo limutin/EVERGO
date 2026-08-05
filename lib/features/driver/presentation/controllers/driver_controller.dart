@@ -388,6 +388,53 @@ class DriverController extends GetxController {
     await _driverService.updatePassengerCount(assignedBus.value!.id, count);
   }
 
+  /// Toggle route direction (Dipolog→Dapitan ↔ Dapitan→Dipolog)
+  Future<void> toggleDirection() async {
+    if (assignedBus.value == null) return;
+
+    try {
+      // Get current direction
+      final currentIsReversed = assignedBus.value!.isReversed;
+      final newIsReversed = !currentIsReversed;
+
+      // Get route name parts for display
+      final routeName = assignedBus.value!.routeName;
+      String directionLabel = '';
+      
+      if (routeName.contains('↔')) {
+        final parts = routeName.split('↔').map((s) => s.trim()).toList();
+        if (parts.length == 2) {
+          directionLabel = newIsReversed 
+              ? '${parts[1]} → ${parts[0]}'
+              : '${parts[0]} → ${parts[1]}';
+        }
+      }
+
+      print('🔄 Toggling direction...');
+      print('   Current: ${currentIsReversed ? "Reversed" : "Normal"}');
+      print('   New: ${newIsReversed ? "Reversed" : "Normal"}');
+      print('   Direction: $directionLabel');
+
+      // Update Firebase in background (non-blocking)
+      _driverService.updateBusDirection(
+        assignedBus.value!.id,
+        newIsReversed,
+      ).then((_) {
+        print('✓ Direction updated in Firebase');
+        _showSnackbar('Direction Changed', 'Route direction: $directionLabel');
+      }).catchError((e) {
+        print('❌ Error updating direction: $e');
+        _showSnackbar('Error', 'Failed to change direction');
+      });
+
+      // Note: The UI will update automatically via the bus stream listener
+      // No need for optimistic update here since direction is not time-sensitive
+    } catch (e) {
+      print('❌ Error toggling direction: $e');
+      _showSnackbar('Error', 'Failed to toggle direction');
+    }
+  }
+
   /// Submit a report
   Future<void> submitReport({
     required String type,
