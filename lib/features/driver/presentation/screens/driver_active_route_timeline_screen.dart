@@ -84,6 +84,9 @@ class _DriverActiveRouteTimelineScreenState
       backgroundColor: AppColors.backgroundDark,
       body: Obx(() {
         final bus = ctrl.assignedBus.value;
+        final isReversed = bus?.isReversed ?? false;
+        final directionalStops = route.getDirectionalStops(isReversed);
+        final directionalPolyline = route.getDirectionalPolyline(isReversed);
 
         return Stack(
           children: [
@@ -103,19 +106,19 @@ class _DriverActiveRouteTimelineScreenState
                   userAgentPackageName: 'com.evergo.evergo_bus_tracker',
                   retinaMode: true,
                 ),
-                // Route Polyline
+                // Route Polyline (directional)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: route.polyline,
+                      points: directionalPolyline,
                       color: AppColors.accent.withValues(alpha: 0.8),
                       strokeWidth: 5,
                     ),
                   ],
                 ),
-                // Stop markers
+                // Stop markers (directional)
                 MarkerLayer(
-                  markers: route.stops.map((stop) {
+                  markers: directionalStops.map((stop) {
                     return Marker(
                       point: stop.position,
                       width: 32,
@@ -346,6 +349,40 @@ class _DriverActiveRouteTimelineScreenState
                             color: AppColors.textPrimary,
                           ),
                         ),
+                        if (isReversed) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppColors.accent.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 10,
+                                  color: AppColors.accent,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'REVERSED',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.accent,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         Text(
                           ctrl.isSharingLocation.value
@@ -368,7 +405,7 @@ class _DriverActiveRouteTimelineScreenState
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Interactive Timeline
+                    // Interactive Timeline (directional)
                     Expanded(
                       child: StreamBuilder<DocumentSnapshot>(
                         stream: bus != null
@@ -388,11 +425,11 @@ class _DriverActiveRouteTimelineScreenState
 
                           return ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: route.stops.length,
+                            itemCount: directionalStops.length,
                             itemBuilder: (context, index) {
-                              final stop = route.stops[index];
+                              final stop = directionalStops[index];
                               final isFirst = index == 0;
-                              final isLast = index == route.stops.length - 1;
+                              final isLast = index == directionalStops.length - 1;
                               final isCurrent = index == currentStopIndex;
                               final isPassed = index < currentStopIndex;
 

@@ -175,38 +175,7 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    // Direction toggle button (NEW!)
-                    Obx(() => GestureDetector(
-                          onTap: () => ctrl.toggleDirection(),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.cardDark.withValues(alpha: 0.97),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: AppColors.accent.withValues(alpha: 0.3),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.accent.withValues(alpha: 0.15),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              ctrl.assignedBus.value?.isReversed == true
-                                  ? Icons.arrow_back_rounded
-                                  : Icons.arrow_forward_rounded,
-                              color: AppColors.accent,
-                              size: 20,
-                            ),
-                          ),
-                        )),
-                    const SizedBox(width: 10),
-                    // Location share toggle (IMPROVED: Better visibility)
+                    // Location share toggle
                     Obx(() => GestureDetector(
                           onTap: () {
                             if (ctrl.isSharingLocation.value) {
@@ -221,7 +190,7 @@ class _DriverActiveRouteScreenState extends State<DriverActiveRouteScreen> {
                             decoration: BoxDecoration(
                               color: ctrl.isSharingLocation.value
                                   ? AppColors.success
-                                  : Colors.red.shade400, // Red when OFF for visibility
+                                  : Colors.red.shade400,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: ctrl.isSharingLocation.value

@@ -59,6 +59,7 @@ class DriverController extends GetxController {
     _activeTripSubscription?.cancel();
     _locationSubscription?.cancel();
     _locationUpdateTimer?.cancel();
+    _passengerCountDebounce?.cancel(); // Cancel debounce timer
     super.onClose();
   }
 
@@ -381,11 +382,41 @@ class DriverController extends GetxController {
   }
 
   /// Update passenger count
+  Timer? _passengerCountDebounce;
+  
   Future<void> updatePassengerCount(int count) async {
     if (assignedBus.value == null) return;
 
+    // Update UI immediately (optimistic)
     passengerCount.value = count;
-    await _driverService.updatePassengerCount(assignedBus.value!.id, count);
+    
+    // Cancel previous timer if exists
+    _passengerCountDebounce?.cancel();
+    
+    // Wait 2 seconds before updating Firebase
+    _passengerCountDebounce = Timer(const Duration(seconds: 2), () async {
+      await _driverService.updatePassengerCount(assignedBus.value!.id, count);
+      print('✅ Passenger count updated to Firebase: $count');
+    });
+  }
+
+  /// Increment passenger count (for +/- buttons)
+  void incrementPassengerCount() {
+    final bus = assignedBus.value;
+    if (bus == null) return;
+    
+    final newCount = passengerCount.value + 1;
+    if (newCount <= bus.capacity) {
+      updatePassengerCount(newCount);
+    }
+  }
+
+  /// Decrement passenger count (for +/- buttons)
+  void decrementPassengerCount() {
+    final newCount = passengerCount.value - 1;
+    if (newCount >= 0) {
+      updatePassengerCount(newCount);
+    }
   }
 
   /// Toggle route direction (Dipolog→Dapitan ↔ Dapitan→Dipolog)

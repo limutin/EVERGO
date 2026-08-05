@@ -682,8 +682,11 @@ class _BusCard extends StatelessWidget {
               orElse: () => BusRouteModel.mockRoutes.first,
             );
             
-            if (currentStopIndex >= 0 && currentStopIndex < route.stops.length) {
-              final currentStop = route.stops[currentStopIndex];
+            // Use directional stops based on bus direction
+            final directionalStops = route.getDirectionalStops(bus.isReversed);
+            
+            if (currentStopIndex >= 0 && currentStopIndex < directionalStops.length) {
+              final currentStop = directionalStops[currentStopIndex];
               
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

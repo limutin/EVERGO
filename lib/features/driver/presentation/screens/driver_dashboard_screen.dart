@@ -631,48 +631,104 @@ class _AssignedBusCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            // Passenger Slider
-            Text(
-              'Update Passenger Count',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
+            // Passenger Counter with +/- Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Update Passenger Count',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                // Minus Button
+                GestureDetector(
+                  onTap: ctrl.decrementPassengerCount,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.cardDark2,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.accent.withOpacity(0.3),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.remove_rounded,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Count Display
+                Obx(() => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.accent.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    '${ctrl.passengerCount.value}',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                )),
+                const SizedBox(width: 12),
+                // Plus Button
+                GestureDetector(
+                  onTap: ctrl.incrementPassengerCount,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accent.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.add_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: AppColors.accent,
-                inactiveTrackColor: AppColors.dividerDark,
-                thumbColor: AppColors.accent,
-                overlayColor: AppColors.accent.withValues(alpha: 0.1),
-              ),
-              child: Slider(
-                value: bus.passengerCount.toDouble(),
-                min: 0,
-                max: bus.capacity.toDouble(),
-                divisions: bus.capacity,
-                onChanged: (v) => ctrl.updatePassengerCount(v.toInt()),
-              ),
-            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${bus.passengerCount} / ${bus.capacity}',
+                Obx(() => Text(
+                  '${ctrl.passengerCount.value} / ${bus.capacity}',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
-                ),
-                Text(
-                  '${((bus.passengerCount / bus.capacity) * 100).toStringAsFixed(0)}% full',
+                )),
+                Obx(() => Text(
+                  '${((ctrl.passengerCount.value / bus.capacity) * 100).toStringAsFixed(0)}% full',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
-                ),
+                )),
               ],
             ),
           ],

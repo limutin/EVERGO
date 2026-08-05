@@ -125,7 +125,7 @@ class _DriverRoutesScreenState extends State<DriverRoutesScreen> {
                                   color: (isMyRoute
                                           ? AppColors.accent
                                           : AppColors.primary)
-                                      .withValues(alpha: 0.12),
+                                      .withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
@@ -144,14 +144,20 @@ class _DriverRoutesScreenState extends State<DriverRoutesScreen> {
                                     Row(
                                       children: [
                                         Flexible(
-                                          child: Text(
-                                            route.name,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppColors.textPrimary,
-                                            ),
-                                          ),
+                                          child: Obx(() {
+                                            // Show direction-aware name if this is my route
+                                            final displayName = isMyRoute && driverCtrl.assignedBus.value != null
+                                                ? driverCtrl.assignedBus.value!.directionAwareRouteName
+                                                : route.name;
+                                            return Text(
+                                              displayName,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            );
+                                          }),
                                         ),
                                         if (isMyRoute) ...[
                                           const SizedBox(width: 8),
@@ -189,6 +195,33 @@ class _DriverRoutesScreenState extends State<DriverRoutesScreen> {
                                   ],
                                 ),
                               ),
+                              // Direction toggle button (only for my route)
+                              if (isMyRoute) ...[
+                                const SizedBox(width: 8),
+                                Obx(() => GestureDetector(
+                                  onTap: () => driverCtrl.toggleDirection(),
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accent.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: AppColors.accent.withOpacity(0.3),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      driverCtrl.assignedBus.value?.isReversed == true
+                                          ? Icons.arrow_back_rounded
+                                          : Icons.arrow_forward_rounded,
+                                      color: AppColors.accent,
+                                      size: 18,
+                                    ),
+                                  ),
+                                )),
+                                const SizedBox(width: 4),
+                              ],
                               Icon(
                                 isExpanded
                                     ? Icons.keyboard_arrow_up_rounded
@@ -305,20 +338,67 @@ class _DriverRoutesScreenState extends State<DriverRoutesScreen> {
                           const SizedBox(height: 16),
                           const Divider(color: AppColors.dividerDark, height: 1),
                           const SizedBox(height: 16),
-                          // Stops Section
-                          Text(
-                            'Stops (${route.stops.length})',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...List.generate(route.stops.length, (si) {
-                            final stop = route.stops[si];
-                            final isFirst = si == 0;
-                            final isLast = si == route.stops.length - 1;
+                          // Stops Section (directional for my route)
+                          Obx(() {
+                            // Use directional stops if this is my route
+                            final displayStops = isMyRoute && driverCtrl.assignedBus.value != null
+                                ? route.getDirectionalStops(driverCtrl.assignedBus.value!.isReversed)
+                                : route.stops;
+                            
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Stops (${displayStops.length})',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    if (isMyRoute && driverCtrl.assignedBus.value?.isReversed == true) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.accent.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: AppColors.accent.withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.swap_horiz_rounded,
+                                              size: 9,
+                                              color: AppColors.accent,
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              'REVERSED',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.accent,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                ...List.generate(displayStops.length, (si) {
+                                  final stop = displayStops[si];
+                                  final isFirst = si == 0;
+                                  final isLast = si == displayStops.length - 1;
 
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,6 +465,9 @@ class _DriverRoutesScreenState extends State<DriverRoutesScreen> {
                               ],
                             );
                           }),
+                        ],
+                      );
+                    }),
                         ],
                       ),
                     ),
